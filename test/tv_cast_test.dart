@@ -47,6 +47,23 @@ void main() {
         )).close();
         expect(denied.statusCode, 403);
         await denied.drain<void>();
+        final page = await (await client.getUrl(
+          url.replace(path: '/tv'),
+        )).close();
+        expect(page.statusCode, 200);
+        final html = await utf8.decoder.bind(page).join();
+        expect(html, contains('<video'));
+        expect(html, contains('/tv-status'));
+        final status = await (await client.getUrl(
+          url.replace(
+            path: '/tv-status',
+            queryParameters: {'state': 'playing', 'time': '4.5'},
+          ),
+        )).close();
+        expect(status.statusCode, 204);
+        await status.drain<void>();
+        expect(relay.receiverState, 'playing');
+        expect(relay.receiverTime, 4.5);
       } finally {
         client.close(force: true);
         await relay.close();

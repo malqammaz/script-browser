@@ -107,6 +107,7 @@ void main() {
           tv,
           Uri.parse(selected!),
           cookies: web.mediaCookies,
+          useBrowserReceiver: true,
           headers: web.mediaRequests[selected] ?? const {},
         );
       } catch (_) {
@@ -115,16 +116,20 @@ void main() {
         );
         rethrow;
       }
-      await tester.pump(const Duration(seconds: 6));
-      final state = await TvCast.command(tv, 'GetTransportInfo');
-      expect(state, contains('PLAYING'));
-      final position = await TvCast.command(tv, 'GetPositionInfo');
-      final time = RegExp(
-        r'<RelTime>([^<]+)</RelTime>',
-      ).firstMatch(position)?.group(1);
-      expect(time, isNotNull);
-      expect(time, isNot('00:00:00'));
-      debugPrint('Yalanime casting verified: PLAYING at $time');
+      debugPrint('LG_BROWSER_READY ${cast.receiverUrl}');
+      for (
+        var i = 0;
+        i < 180 &&
+            cast.relay!.receiverTime < 3 &&
+            cast.relay!.receiverState != 'error';
+        i++
+      )
+        await tester.pump(const Duration(seconds: 1));
+      debugPrint(
+        'Receiver state=${cast.relay!.receiverState}, time=${cast.relay!.receiverTime}, upstream=${cast.relay!.lastUpstreamStatus}, type=${cast.relay!.lastContentType}',
+      );
+      expect(cast.relay!.receiverState, 'playing');
+      expect(cast.relay!.receiverTime, greaterThanOrEqualTo(3));
     } finally {
       await cast.stop();
       await cast.close();

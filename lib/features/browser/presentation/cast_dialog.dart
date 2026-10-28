@@ -16,6 +16,7 @@ class _CastDialogState extends State<CastDialog> {
   String? media;
   String status = '';
   bool busy = false;
+  bool lgBrowser = true;
   final manual = TextEditingController();
   @override
   void initState() {
@@ -57,7 +58,14 @@ class _CastDialogState extends State<CastDialog> {
     setState(() => busy = true);
     try {
       await task();
-      if (mounted) setState(() => status = message);
+      if (mounted)
+        setState(
+          () => status =
+              widget.cast.browserReceiver &&
+                  message == 'تم إرسال الفيديو للتلفزيون'
+              ? 'افتح هذا العنوان في متصفح LG:\n${widget.cast.receiverUrl}\nثم اضغط Play على التلفزيون. اترك التطبيق مفتوحاً.'
+              : message,
+        );
     } catch (error) {
       if (mounted) setState(() => status = '$error');
     } finally {
@@ -121,37 +129,46 @@ class _CastDialogState extends State<CastDialog> {
             if (status.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 14),
-                child: Text(status),
+                child: SelectableText(status),
               ),
+            SwitchListTile(
+              value: lgBrowser,
+              onChanged: busy
+                  ? null
+                  : (value) => setState(() => lgBrowser = value),
+              title: const Text('استخدام متصفح LG لبث HLS'),
+            ),
             if (widget.cast.connected != null)
               Wrap(
                 spacing: 8,
                 children: [
-                  TextButton(
-                    onPressed: busy
-                        ? null
-                        : () => action(
-                            () => TvCast.command(
-                              widget.cast.connected!,
-                              'Pause',
-                            ).then((_) {}),
-                            'تم الإيقاف المؤقت',
-                          ),
-                    child: const Text('إيقاف مؤقت'),
-                  ),
-                  TextButton(
-                    onPressed: busy
-                        ? null
-                        : () => action(
-                            () => TvCast.command(
-                              widget.cast.connected!,
-                              'Play',
-                              {'Speed': '1'},
-                            ).then((_) {}),
-                            'تم الاستئناف',
-                          ),
-                    child: const Text('استئناف'),
-                  ),
+                  if (!widget.cast.browserReceiver)
+                    TextButton(
+                      onPressed: busy
+                          ? null
+                          : () => action(
+                              () => TvCast.command(
+                                widget.cast.connected!,
+                                'Pause',
+                              ).then((_) {}),
+                              'تم الإيقاف المؤقت',
+                            ),
+                      child: const Text('إيقاف مؤقت'),
+                    ),
+                  if (!widget.cast.browserReceiver)
+                    TextButton(
+                      onPressed: busy
+                          ? null
+                          : () => action(
+                              () => TvCast.command(
+                                widget.cast.connected!,
+                                'Play',
+                                {'Speed': '1'},
+                              ).then((_) {}),
+                              'تم الاستئناف',
+                            ),
+                      child: const Text('استئناف'),
+                    ),
                   TextButton(
                     onPressed: busy
                         ? null
@@ -189,6 +206,10 @@ class _CastDialogState extends State<CastDialog> {
                   selected!,
                   uri,
                   cookies: widget.web.mediaCookies,
+                  useBrowserReceiver:
+                      lgBrowser &&
+                      selected!.name.toLowerCase().contains('lg') &&
+                      uri.path.toLowerCase().endsWith('.m3u8'),
                   headers:
                       widget.web.mediaRequests[url] ??
                       {'Referer': widget.web.pageUrl},

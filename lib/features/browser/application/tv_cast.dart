@@ -14,6 +14,8 @@ class TvCast {
   static const service = 'urn:schemas-upnp-org:service:AVTransport:1';
   MediaRelay? relay;
   CastTv? connected;
+  bool browserReceiver = false;
+  Uri? get receiverUrl => relay?.browserUrl;
 
   static String xmlEscape(String value) => value
       .replaceAll('&', '&amp;')
@@ -140,6 +142,7 @@ class TvCast {
     Uri media, {
     required Future<String> Function(Uri) cookies,
     Map<String, String> headers = const {},
+    bool useBrowserReceiver = false,
   }) async {
     final interfaces = await NetworkInterface.list(
       type: InternetAddressType.IPv4,
@@ -160,7 +163,17 @@ class TvCast {
     final next = MediaRelay(cookies: cookies, headers: headers);
     relay = next;
     try {
-      final url = await next.start(media, local, peer.address);
+      final url = await next.start(
+        media,
+        local,
+        peer.address,
+        port: useBrowserReceiver ? 8878 : 0,
+      );
+      browserReceiver = useBrowserReceiver;
+      if (useBrowserReceiver) {
+        connected = tv;
+        return;
+      }
       final type = media.path.toLowerCase().endsWith('.m3u8')
           ? 'application/vnd.apple.mpegurl'
           : 'video/mp4';
@@ -184,9 +197,11 @@ class TvCast {
 
   Future<void> stop() async {
     try {
-      if (connected != null) await command(connected!, 'Stop');
+      if (connected != null && !browserReceiver)
+        await command(connected!, 'Stop');
     } finally {
       connected = null;
+      browserReceiver = false;
       await relay?.close();
       relay = null;
     }
@@ -200,6 +215,10 @@ class TvCast {
 
 /// Streams bytes in memory; URLs are registered explicitly, never an open proxy.
 class MediaRelay {
+  Uri? _media;
+  Uri get browserUrl => _base.resolve('/tv');
+  String receiverState = 'waiting';
+  double receiverTime = 0;
   int? lastUpstreamStatus;
   String? lastContentType;
   String? lastFailure;
@@ -213,16 +232,22 @@ class MediaRelay {
   late String _peer;
   late Uri _base;
   late String _secret;
-  Future<Uri> start(Uri media, InternetAddress address, String peer) async {
+  Future<Uri> start(
+    Uri media,
+    InternetAddress address,
+    String peer, {
+    int port = 0,
+  }) async {
     _peer = peer;
     _secret = List.generate(
       24,
       (_) => Random.secure().nextInt(256).toRadixString(16).padLeft(2, '0'),
     ).join();
-    _server = await HttpServer.bind(address, 0);
+    _server = await HttpServer.bind(address, port);
     _base = Uri(scheme: 'http', host: address.address, port: _server!.port);
     _server!.listen((request) => unawaited(_serve(request)));
-    return register(media);
+    _media = register(media);
+    return _media!;
   }
 
   Uri register(Uri uri) {
@@ -254,6 +279,35 @@ class MediaRelay {
     final response = request.response;
     try {
       final parts = request.uri.pathSegments;
+      if (request.connectionInfo?.remoteAddress.address == _peer &&
+          request.method == 'GET' &&
+          request.uri.path == '/tv') {
+        response.headers.contentType = ContentType.html;
+        response.headers.set('Cache-Control', 'no-store');
+        response.write(
+          '''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Script Browser TV</title><style>html,body{margin:0;background:#080b0d;color:white;font:22px sans-serif;height:100%}video{width:100%;height:90vh;background:black}p{text-align:center;margin:8px}</style></head><body><video id="video" controls autoplay playsinline src="${TvCast.xmlEscape('$_media')}"></video><p id="status">Select Play to start the video.</p><script>
+const v=document.getElementById('video'),s=document.getElementById('status');let last=0;
+function report(state){fetch('/tv-status?state='+state+'&time='+v.currentTime).catch(()=>{});}
+v.addEventListener('playing',()=>{s.textContent='Playing from your phone';report('playing');});
+v.addEventListener('pause',()=>report('paused'));
+v.addEventListener('error',()=>{s.textContent='This stream could not be played (error '+(v.error?v.error.code:'unknown')+').';report('error');});
+v.addEventListener('timeupdate',()=>{if(v.currentTime-last>2){last=v.currentTime;report('playing');}});
+v.play().catch(()=>{s.textContent='Press Play on the video to start.';});
+</script></body></html>''',
+        );
+        return;
+      }
+      if (request.connectionInfo?.remoteAddress.address == _peer &&
+          request.method == 'GET' &&
+          request.uri.path == '/tv-status') {
+        final state = request.uri.queryParameters['state'];
+        if (['playing', 'paused', 'error'].contains(state))
+          receiverState = state!;
+        receiverTime =
+            double.tryParse(request.uri.queryParameters['time'] ?? '') ?? 0;
+        response.statusCode = 204;
+        return;
+      }
       if (request.connectionInfo?.remoteAddress.address != _peer ||
           parts.length != 2 ||
           parts[0] != _secret ||
