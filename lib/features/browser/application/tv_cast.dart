@@ -119,8 +119,16 @@ class TvCast {
           .bind(response)
           .join()
           .timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200)
-        throw StateError('التلفزيون رفض الطلب ($action). جرّب رابط فيديو آخر.');
+      if (response.statusCode != 200) {
+        final code =
+            RegExp(
+              r'<errorCode>([^<]+)</errorCode>',
+            ).firstMatch(text)?.group(1) ??
+            '${response.statusCode}';
+        throw StateError(
+          'التلفزيون رفض الطلب ($action، $code). جرّب رابط فيديو آخر.',
+        );
+      }
       return text;
     } finally {
       client.close(force: true);
@@ -165,6 +173,10 @@ class TvCast {
       await command(tv, 'Play', {'Speed': '1'});
       connected = tv;
     } catch (_) {
+      try {
+        await command(tv, 'Stop');
+      } catch (_) {}
+      connected = null;
       await next.close();
       rethrow;
     }
@@ -188,6 +200,9 @@ class TvCast {
 
 /// Streams bytes in memory; URLs are registered explicitly, never an open proxy.
 class MediaRelay {
+  int? lastUpstreamStatus;
+  String? lastContentType;
+  String? lastFailure;
   MediaRelay({required this.cookies, this.headers = const {}});
   final Future<String> Function(Uri) cookies;
   final Map<String, String> headers;
@@ -282,7 +297,9 @@ class MediaRelay {
       }
       if (upstream == null) throw StateError('Too many media redirects');
       response.statusCode = upstream.statusCode;
+      lastUpstreamStatus = upstream.statusCode;
       final type = upstream.headers.contentType?.mimeType ?? '';
+      lastContentType = type;
       final playlist =
           type.contains('mpegurl') || uri.path.toLowerCase().endsWith('.m3u8');
       if (playlist && request.method != 'HEAD' && upstream.statusCode == 200) {
@@ -310,7 +327,8 @@ class MediaRelay {
           );
         }
       }
-    } catch (_) {
+    } catch (error) {
+      lastFailure = error.runtimeType.toString();
       try {
         response.statusCode = 502;
       } catch (_) {}

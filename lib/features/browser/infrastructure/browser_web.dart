@@ -36,17 +36,40 @@ class BrowserWeb implements BrowserEngine {
 
   Future<void> detectMedia() async {
     final raw = await controller?.evaluateJavascript(
-      source: '''JSON.stringify([
+      source: '''JSON.stringify((()=>{
+      const configured=[];
+      try {
+        if(typeof window.jwplayer==='function') {
+          for(const item of window.jwplayer().getPlaylist() || []) {
+            if(item.drm) continue;
+            if(item.file) configured.push(item.file);
+            for(const source of item.sources || []) if(!source.drm && source.file) configured.push(source.file);
+          }
+        }
+      } catch (_) {}
+      return [
       ...Array.from(document.querySelectorAll('video,video source')).map(v=>v.currentSrc||v.src),
-      ...performance.getEntriesByType('resource').map(r=>r.name)
-    ].filter(Boolean))''',
+      ...performance.getEntriesByType('resource').map(r=>r.name),
+      ...configured
+    ].filter(Boolean).map(url=>{try{return new URL(url,location.href).href;}catch(_){return '';}});
+    })())''',
     );
     if (raw is String) {
       final list = jsonDecode(raw);
       if (list is List)
         for (final url in list) {
-          if (url is String) rememberMedia(url);
+          if (url is String)
+            rememberMedia(url, mediaRequests[url] ?? {'Referer': pageUrl});
         }
+      if (mediaRequests.isNotEmpty) {
+        final agent = await controller?.evaluateJavascript(
+          source: 'navigator.userAgent',
+        );
+        if (agent is String)
+          for (final headers in mediaRequests.values) {
+            headers.putIfAbsent('User-Agent', () => agent);
+          }
+      }
     }
   }
 

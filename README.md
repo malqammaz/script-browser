@@ -87,3 +87,9 @@ flutter build apk --debug
 
 اختبار Relay وSOAP: flutter test test/tv_cast_test.dart
 اختبار فعلي على الهاتف والتلفزيون: flutter test integration_test/tv_cast_test.dart -d DEVICE_ID
+
+### نتيجة اختبار Yalanime على LG UR78006LL
+
+اختبار فعلي بتاريخ 2026-10-28: تم اكتشاف HLS من Uqload وVidara؛ رفض التلفزيون تحميله عبر DLNA (SetAVTransportURI 716/701). قائمة الصيغ المعلنة من التلفزيون لا تذكر HLS. تشغيل MP4 التجريبي من الهاتف نجح سابقاً؛ نجاح HLS من هؤلاء المضيفين غير مؤكد ولا يعد ميزة متحققة على هذا التلفزيون. تحسين 1.4.1 يقرأ مصادر JW Player المعلنة قبل بدء طلب الفيديو، ويحاول إيقاف جلسة التلفزيون عند فشل التحميل.
+
+اختبار الموقع الحي اختياري: flutter test integration_test/yalanime_cast_test.dart -d DEVICE_ID. يتطلب تلفزيون LG وشبكة محلية وخوادم فيديو متاحة، وسيحاول بدء تشغيل فيديو على التلفزيون.
