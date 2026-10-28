@@ -5,6 +5,7 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'media_source.dart';
 import 'ram_media_buffer.dart';
+import 'receiver_player_script.dart';
 
 /// Streams bytes in memory; URLs are registered explicitly, never an open proxy.
 class MediaRelay {
@@ -322,15 +323,8 @@ class MediaRelay {
           return;
         }
         response.write(
-          '''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Script Browser TV</title><style>html,body{margin:0;background:#080b0d;color:white;font:22px sans-serif;height:100%}video{width:100%;height:90vh;background:black}p{text-align:center;margin:8px}</style></head><body><video id="video" controls autoplay playsinline src="${_escape('$_media')}"></video><p id="status">Select Play to start the video.</p><script>
-const v=document.getElementById('video'),s=document.getElementById('status');let last=0;
-function report(state){fetch('/tv-status?state='+state+'&time='+v.currentTime).catch(()=>{});}
-v.addEventListener('playing',()=>{s.textContent='Playing from your phone';report('playing');});
-v.addEventListener('pause',()=>report('paused'));
-v.addEventListener('error',()=>{s.textContent='This stream could not be played (error '+(v.error?v.error.code:'unknown')+').';report('error');});
-v.addEventListener('timeupdate',()=>{if(v.currentTime-last>2){last=v.currentTime;report('playing');}});
-v.play().catch(()=>{s.textContent='Press Play on the video to start.';});
-setInterval(()=>{if(!v.paused&&!v.error)fetch('/tv-buffer').then(r=>r.json()).then(b=>{s.textContent='Playing · RAM buffer '+(b.used/1048576).toFixed(1)+' / '+(b.limit/1048576).toFixed(0)+' MB';}).catch(()=>{});},4000);
+          '''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Script Browser TV</title><style>html,body{margin:0;background:#080b0d;color:white;font:22px sans-serif;height:100%}video{width:100%;height:90vh;background:black}p{text-align:center;margin:8px}</style></head><body><video id="video" controls autoplay playsinline src="${_escape('$_media')}"></video><p id="status">Select Play to start the video.</p><p><button id="retry" style="font:inherit;padding:8px 24px">Retry playback</button></p><script>
+$receiverPlayerScript
 </script></body></html>''',
         );
         return;
@@ -349,7 +343,15 @@ setInterval(()=>{if(!v.paused&&!v.error)fetch('/tv-buffer').then(r=>r.json()).th
           request.method == 'GET' &&
           request.uri.path == '/tv-status') {
         final state = request.uri.queryParameters['state'];
-        if (['playing', 'paused', 'error'].contains(state)) {
+        if ([
+          'playing',
+          'paused',
+          'error',
+          'buffering',
+          'seeking',
+          'recovering',
+          'ended',
+        ].contains(state)) {
           receiverState = state!;
         }
         receiverTime =

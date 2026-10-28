@@ -154,3 +154,9 @@ Live HLS, byte-range playlists, and direct MP4 continue through the normal relay
 Validation: flutter test test/ram_media_buffer_test.dart covers memory limits, cached Range requests, seeking, and rate-limit handling with a local test server.
 
 Validation for this revision: 52 automated tests passed; flutter analyze reported no issues; Android debug APK built successfully. Live TV playback was not repeated for this UI revision.
+
+## Seek recovery (1.6.1)
+
+A live LG session stalled at 12:26.7 after seeking despite approximately 47 MiB in the phone cache, HTTP 200 from the source, and no recorded relay error. Those observations do not establish the decoder's root cause. The TV receiver now reports seeking/buffering separately from playing and reports backward seeks correctly. If playback makes no progress for 15 seconds while unpaused, it attempts one reload at the same time. A visible Retry playback button allows an explicit further attempt. This avoids an unbounded automatic reload loop and does not change upstream rate-limit handling. Google Drive's embedded player is unchanged.
+
+Run `node test/receiver_player_test.cjs` to verify the receiver's recovery limit, position preservation, backward-seek reporting, and progress handling with a simulated video element. Real LG playback still requires a manual TV test after updating and reloading the receiver page.

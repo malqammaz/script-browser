@@ -38,6 +38,10 @@ class _CastStatusBarState extends State<CastStatusBar> {
     final state = switch (relay?.receiverState) {
       'playing' => 'قيد التشغيل',
       'paused' => 'متوقف مؤقتاً',
+      'buffering' => 'جارٍ تحميل الفيديو…',
+      'seeking' => 'جارٍ الانتقال للوقت المطلوب…',
+      'recovering' => 'جارٍ استعادة التشغيل…',
+      'ended' => 'انتهى الفيديو',
       'waiting' => 'بانتظار تشغيل التلفزيون',
       'error' => 'تعذر تشغيل الفيديو',
       _ => 'جلسة البث جاهزة',
