@@ -18,7 +18,7 @@ class _ScriptsDockState extends State<ScriptsDock> {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          height: 44,
+          height: 48,
           child: Row(
             children: [
               const SizedBox(width: 12),

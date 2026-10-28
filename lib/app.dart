@@ -20,6 +20,12 @@ class ScriptBrowserApp extends StatelessWidget {
       colorSchemeSeed: const Color(0xff146c60),
       useMaterial3: true,
     ),
+    darkTheme: ThemeData(
+      colorSchemeSeed: const Color(0xff52e0c4),
+      brightness: Brightness.dark,
+      useMaterial3: true,
+    ),
+    themeMode: ThemeMode.system,
     builder: (context, child) =>
         Directionality(textDirection: TextDirection.ltr, child: child!),
     home: BrowserScreen(

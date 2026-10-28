@@ -35,17 +35,21 @@ class _CastStatusBarState extends State<CastStatusBar> {
   @override
   Widget build(BuildContext context) {
     final relay = widget.cast.relay;
-    final state = switch (relay?.receiverState) {
-      'playing' => 'Playing',
-      'paused' => 'Paused',
-      'buffering' => 'Buffering…',
-      'seeking' => 'Seeking…',
-      'recovering' => 'Recovering playback…',
-      'ended' => 'Video ended',
-      'waiting' => 'Waiting for TV playback',
-      'error' => 'Unable to play video',
-      _ => 'Cast session ready',
-    };
+    final state = relay?.usesExternalPlayer == true
+        ? (relay!.receiverPageOpened
+              ? 'Player opened on TV · use TV controls'
+              : 'Open the TV browser to continue')
+        : switch (relay?.receiverState) {
+            'playing' => 'Playing',
+            'paused' => 'Paused',
+            'buffering' => 'Buffering…',
+            'seeking' => 'Seeking…',
+            'recovering' => 'Recovering playback…',
+            'ended' => 'Video ended',
+            'waiting' => 'Waiting for TV playback',
+            'error' => 'Unable to play video',
+            _ => 'Cast session ready',
+          };
     final buffer = relay?.buffer;
     final tvBuffer = relay?.receiverEngine == 'hlsjs'
         ? ' · TV buffer ${relay!.receiverBufferedSeconds.toStringAsFixed(0)}s'
@@ -56,11 +60,11 @@ class _CastStatusBarState extends State<CastStatusBar> {
     return Material(
       color: Theme.of(context).colorScheme.secondaryContainer,
       child: ListTile(
-        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         leading: const Icon(Icons.cast_connected),
         title: Text(
           widget.cast.connected?.name ?? '',
-          maxLines: 1,
+          maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(details, maxLines: 2),

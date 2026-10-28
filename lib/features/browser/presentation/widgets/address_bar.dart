@@ -31,7 +31,12 @@ class AddressBar extends StatelessWidget {
             autocorrect: false,
             keyboardType: TextInputType.url,
             onSubmitted: (_) => onOpen(),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
+              suffixIcon: IconButton(
+                tooltip: 'Go',
+                onPressed: onOpen,
+                icon: const Icon(Icons.arrow_forward),
+              ),
               hintText: 'Search Google or enter a URL',
               filled: true,
               border: OutlineInputBorder(
@@ -53,11 +58,6 @@ class AddressBar extends StatelessWidget {
               ),
             ),
           ),
-        ),
-        IconButton(
-          tooltip: 'Go',
-          onPressed: onOpen,
-          icon: const Icon(Icons.arrow_forward),
         ),
         IconButton(
           tooltip: 'Reload',

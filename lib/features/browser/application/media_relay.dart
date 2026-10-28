@@ -20,6 +20,8 @@ class MediaRelay {
       .replaceAll('"', '&quot;');
   Uri? _media;
   Uri? _original;
+  bool get usesExternalPlayer =>
+      _original != null && publicEmbeddedPreview(_original!) != null;
   bool receiverPageOpened = false;
   Uri get browserUrl => _base.resolve('/tv');
   String receiverState = 'waiting';

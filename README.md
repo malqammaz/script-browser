@@ -238,3 +238,22 @@ Clarification from the user: the MEGA video did play on LG, but a loading indica
 The local `/tv` receiver now responds with a non-cacheable HTTP 302 redirect to the normal official `https://mega.nz/file/ID#KEY` page for a public MEGA source. It no longer embeds MEGA in an iframe or opens its `/embed/` endpoint on the TV. The supplied public key is preserved in the fragment. Google Drive keeps its existing iframe preview; direct video/HLS casting is unchanged. No MEGA RAM downloader or native decryption was added.
 
 Open the bookmarked phone `/tv` address again to load the current cast. Refreshing an already-redirected MEGA page refreshes that MEGA file, not the phone receiver. MEGA controls its own loading indicator, so disappearance of the spinner still requires a TV check. Tests verify the redirect status, target/key preservation, no-cache response, absence of an iframe, and no native upstream/cookie request.
+
+## Mobile UI/UX redesign and research (1.8.0)
+
+Research focused on Material's scannable lists, Flutter's adaptive dialogs, 48 dp Android touch targets, and layouts that accommodate larger text. Sources:
+
+- https://api.flutter.dev/flutter/material/Dialog-class.html
+- https://m3.material.io/components/lists/overview
+- https://docs.flutter.dev/ui/accessibility/ui-design-and-styling
+- https://docs.flutter.dev/ui/accessibility/accessibility-testing
+
+The old narrow AlertDialog + vertical Stepper squeezed video names into multiple short lines and stacked Close/Back/Start buttons. The new phone casting UI uses a full-screen task with compact TV/Video/Connect navigation, full-width selection cards, scrollable content, and a pinned Back/Next/Start footer. Larger screens use a constrained dialog. Short/keyboard layouts omit the step tabs to leave room for the form. The close action is always in the header.
+
+Video cards separate source identity from playback mode (MEGA opens directly, Drive uses preview, HLS is adaptive). Long URLs stay in Details. Manual URLs get inline validation, including the public-link/key requirements for MEGA and the expected Drive file-link format. Refresh has its own loading/error state. Active sessions show Done rather than another Start button; closing controls keeps casting active. The cast summary explains background casting and makes the TV address easy to copy.
+
+The address bar groups Go with its input. The scripts dock retains its minimize behavior with a 48 dp header. Native app surfaces follow the system's light/dark preference. Selection uses an icon and border as well as color. External preview status says the player opened on TV rather than pretending to know its cross-origin playback state. No video download/decryption behavior was added or changed.
+
+Validation: all 64 automated Flutter tests passed; static analysis reported no issues. New tests cover 320 dp width with 1.6x text and a simulated keyboard, manual-link errors, active-session Done behavior, and Android touch-target/label/contrast guideline smoke checks. These checks do not constitute a complete accessibility audit or a manual TalkBack test.
+
+Installed-phone visual review checked the system dark theme, browser toolbar, scripts dock, and full-screen TV selection/empty state. The TV was unavailable during this review; the video and connect steps were covered by widget tests. The review also removed a duplicate discovery empty-state message.
