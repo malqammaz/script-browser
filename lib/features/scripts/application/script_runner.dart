@@ -4,7 +4,7 @@ import '../../browser/domain/browser_engine.dart';
 /// Runs async scripts and polls a private page slot without exposing app bridges.
 class ScriptRunner {
   const ScriptRunner({
-    this.timeout = const Duration(seconds: 30),
+    this.timeout = const Duration(minutes: 15),
     this.pollInterval = const Duration(milliseconds: 250),
   });
   final Duration timeout;
@@ -23,13 +23,18 @@ class ScriptRunner {
       await runtime.runJavaScript('''(() => {
         const key = $key;
         window[key] = null;
+        const complete = value => {
+          if (Object.prototype.hasOwnProperty.call(window, key)) {
+            window[key] = JSON.stringify(value);
+          }
+        };
         (async () => {
           try {
             const value = await (async () => {
               $source
             })();
-            window[key] = JSON.stringify({ok:true, value: value === undefined ? 'تم التنفيذ بدون قيمة إرجاع' : value});
-          } catch(e) { window[key] = JSON.stringify({ok:false,error:String(e)}); }
+            complete({ok:true, value: value === undefined ? 'تم التنفيذ بدون قيمة إرجاع' : value});
+          } catch(e) { complete({ok:false,error:String(e)}); }
         })();
       })();''');
       final deadline = DateTime.now().add(timeout);
@@ -45,7 +50,8 @@ class ScriptRunner {
         final response = decodeResult(raw);
         if (response != null) return response;
       }
-      return 'انتهى انتظار النتيجة بعد 30 ثانية. قد يستمر السكربت؛ أعد تحميل الصفحة لإيقافه.';
+      if (isCancelled()) return '';
+      return 'انتهى انتظار النتيجة بعد ${timeout.inSeconds} ثانية. قد يستمر السكربت؛ أعد تحميل الصفحة لإيقافه.';
     } catch (error) {
       return 'تعذر التنفيذ: $error';
     } finally {
