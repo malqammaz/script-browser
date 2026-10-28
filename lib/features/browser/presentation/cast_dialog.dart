@@ -135,7 +135,7 @@ class _CastDialogState extends State<CastDialog> {
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.cast_connected),
           title: Text(widget.cast.connected!.name),
-          subtitle: const Text('Keep this app open while casting'),
+          subtitle: const Text('Casting can continue with your phone locked'),
         ),
         if (widget.cast.browserReceiver) ...[
           const Text(

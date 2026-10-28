@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:xml/xml.dart';
 import 'media_relay.dart';
+import 'cast_keep_alive.dart';
 export 'media_relay.dart';
 
 class CastTv {
@@ -12,6 +13,8 @@ class CastTv {
 }
 
 class TvCast {
+  TvCast({this.keepAlive = const NoCastKeepAlive()});
+  final CastKeepAlive keepAlive;
   static const service = 'urn:schemas-upnp-org:service:AVTransport:1';
   MediaRelay? relay;
   CastTv? connected;
@@ -163,9 +166,11 @@ class TvCast {
         addresses.where((a) => a.address.startsWith('$prefix.')).firstOrNull ??
         addresses.first;
     await relay?.close();
+    await keepAlive.stop();
     final next = MediaRelay(cookies: cookies, headers: headers);
     relay = next;
     try {
+      await keepAlive.start(tv.name);
       final url = await next.start(
         media,
         local,
@@ -193,7 +198,11 @@ class TvCast {
         await command(tv, 'Stop');
       } catch (_) {}
       connected = null;
-      await next.close();
+      try {
+        await next.close();
+      } finally {
+        await keepAlive.stop();
+      }
       rethrow;
     }
   }
@@ -206,13 +215,21 @@ class TvCast {
     } finally {
       connected = null;
       browserReceiver = false;
-      await relay?.close();
-      relay = null;
+      try {
+        await relay?.close();
+      } finally {
+        relay = null;
+        await keepAlive.stop();
+      }
     }
   }
 
   Future<void> close() async {
-    await relay?.close();
-    relay = null;
+    try {
+      await relay?.close();
+    } finally {
+      relay = null;
+      await keepAlive.stop();
+    }
   }
 }

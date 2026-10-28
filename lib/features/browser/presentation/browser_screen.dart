@@ -13,6 +13,7 @@ import '../../scripts/presentation/script_picker_dialog.dart';
 import '../../scripts/presentation/site_scripts_bar.dart';
 import '../application/browser_session.dart';
 import '../infrastructure/browser_web.dart';
+import '../infrastructure/android_cast_keep_alive.dart';
 import 'widgets/address_bar.dart';
 import 'widgets/cast_status_bar.dart';
 import 'widgets/script_panel.dart';
@@ -38,11 +39,17 @@ class _BrowserScreenState extends State<BrowserScreen> {
   static const tokenKey = 'anime_library_github_token';
   final secureStorage = const FlutterSecureStorage();
   final librarySync = AnimeLibrarySync();
-  final tvCast = TvCast();
+  final castBackground = AndroidCastKeepAlive();
+  late final tvCast = TvCast(keepAlive: castBackground);
 
   @override
   void initState() {
     super.initState();
+    castBackground.onStopRequested = () async {
+      await tvCast.stop();
+      if (mounted) setState(() {});
+    };
+    castBackground.attach();
     session = BrowserSession(
       settingsStore: widget.settingsStore,
       repositories: widget.repositories,
@@ -228,6 +235,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
   @override
   void dispose() {
+    castBackground.detach();
     tvCast.close();
     session.removeListener(onSessionChanged);
     session.dispose();
