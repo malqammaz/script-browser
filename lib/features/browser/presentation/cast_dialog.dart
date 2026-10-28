@@ -117,11 +117,12 @@ class _CastDialogState extends State<CastDialog> {
       selected!,
       uri,
       cookies: widget.web.mediaCookies,
+      isHls: widget.web.isHlsMedia(uri),
       useBrowserReceiver:
           lgBrowser &&
           selected!.name.toLowerCase().contains('lg') &&
           (publicDrivePreview(uri) != null ||
-              uri.path.toLowerCase().endsWith('.m3u8') ||
+              widget.web.isHlsMedia(uri) ||
               isDrivePreviewMedia(uri)),
       headers: widget.web.mediaRequests[raw] ?? {'Referer': widget.web.pageUrl},
     );
@@ -280,9 +281,7 @@ class _CastDialogState extends State<CastDialog> {
                           subtitle: Text(
                             publicDrivePreview(Uri.parse(url)) != null
                                 ? 'Google Drive · Public preview'
-                                : Uri.parse(
-                                    url,
-                                  ).path.toLowerCase().endsWith('.m3u8')
+                                : widget.web.isHlsMedia(Uri.parse(url))
                                 ? 'HLS · Adaptive stream'
                                 : 'Direct video',
                           ),

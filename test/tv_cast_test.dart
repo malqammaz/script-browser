@@ -5,6 +5,64 @@ import 'package:script_browser/features/browser/application/tv_cast.dart';
 
 void main() {
   test(
+    'Declared HLS rewrites txt master and variant manifests without altering upstream URLs',
+    () async {
+      final upstream = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final subscription = upstream.listen((request) async {
+        request.response.headers.contentType = ContentType.text;
+        switch (request.uri.path) {
+          case '/master.txt':
+            request.response.write(
+              '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1000000\nvariant.txt\n',
+            );
+          case '/variant.txt':
+            request.response.write(
+              '#EXTM3U\n#EXTINF:5,\npart.bin\n#EXT-X-ENDLIST\n',
+            );
+          case '/part.bin':
+            request.response.add([1, 2, 3]);
+          default:
+            request.response.statusCode = 404;
+        }
+        await request.response.close();
+      });
+      final relay = MediaRelay(cookies: (_) async => '', sourceIsHls: true);
+      final client = HttpClient();
+      try {
+        final url = await relay.start(
+          Uri.parse('http://127.0.0.1:${upstream.port}/master.txt'),
+          InternetAddress.loopbackIPv4,
+          '127.0.0.1',
+        );
+        expect(url.path, endsWith('.m3u8'));
+        final master = await (await client.getUrl(url)).close();
+        expect(
+          master.headers.contentType?.mimeType,
+          'application/vnd.apple.mpegurl',
+        );
+        final manifest = await utf8.decoder.bind(master).join();
+        final child = Uri.parse(
+          manifest.split('\n').firstWhere((line) => line.startsWith('http')),
+        );
+        expect(child.path, endsWith('.m3u8'));
+        final variant = await (await client.getUrl(child)).close();
+        expect(
+          variant.headers.contentType?.mimeType,
+          'application/vnd.apple.mpegurl',
+        );
+        final body = await utf8.decoder.bind(variant).join();
+        expect(body, contains('#EXTINF:5,'));
+        expect(body, isNot(contains('part.bin')));
+        expect(relay.lastFailure, isNull);
+      } finally {
+        client.close(force: true);
+        await relay.close();
+        await subscription.cancel();
+        await upstream.close(force: true);
+      }
+    },
+  );
+  test(
     'Drive receiver embeds preview without fetching any original bytes or cookies',
     () async {
       final relay = MediaRelay(

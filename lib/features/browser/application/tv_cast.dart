@@ -148,6 +148,7 @@ class TvCast {
     required Future<String> Function(Uri) cookies,
     Map<String, String> headers = const {},
     bool useBrowserReceiver = false,
+    bool isHls = false,
   }) async {
     final interfaces = await NetworkInterface.list(
       type: InternetAddressType.IPv4,
@@ -167,7 +168,11 @@ class TvCast {
         addresses.first;
     await relay?.close();
     await keepAlive.stop();
-    final next = MediaRelay(cookies: cookies, headers: headers);
+    final next = MediaRelay(
+      cookies: cookies,
+      headers: headers,
+      sourceIsHls: isHls,
+    );
     relay = next;
     try {
       await keepAlive.start(tv.name);
@@ -182,7 +187,7 @@ class TvCast {
         connected = tv;
         return;
       }
-      final type = media.path.toLowerCase().endsWith('.m3u8')
+      final type = isHls || media.path.toLowerCase().endsWith('.m3u8')
           ? 'application/vnd.apple.mpegurl'
           : 'video/mp4';
       final metadata =

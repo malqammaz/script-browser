@@ -32,6 +32,7 @@ class MediaRelay {
   String? lastFailure;
   MediaRelay({
     required this.cookies,
+    this.sourceIsHls = false,
     this.loadPlayerScript = _loadBundledHls,
     this.headers = const {},
     int bufferBytes = 128 * 1024 * 1024,
@@ -39,6 +40,8 @@ class MediaRelay {
     this.prefetchSeconds = 120,
     this.prefetchDelay = const Duration(milliseconds: 250),
   }) : buffer = RamMediaBuffer(capacity: bufferBytes);
+  bool sourceIsHls;
+  final _hlsUrls = <Uri>{};
   final RamMediaBuffer buffer;
   final int maxSegmentBytes;
   final double prefetchSeconds;
@@ -73,19 +76,22 @@ class MediaRelay {
     _server = await HttpServer.bind(address, port);
     _base = Uri(scheme: 'http', host: address.address, port: _server!.port);
     _server!.listen((request) => unawaited(_serve(request)));
-    _media = register(media);
+    sourceIsHls = sourceIsHls || media.path.toLowerCase().endsWith('.m3u8');
+    _media = register(media, isHls: sourceIsHls);
     _original = media;
     return _media!;
   }
 
-  Uri register(Uri uri) {
+  Uri register(Uri uri, {bool isHls = false}) {
+    if (isHls || uri.path.toLowerCase().endsWith('.m3u8')) {
+      _hlsUrls.add(uri);
+    }
     if (!['http', 'https'].contains(uri.scheme) || uri.host.isEmpty) {
       throw const FormatException('Invalid video URL.');
     }
     final id = _ids.putIfAbsent(
       uri,
-      () =>
-          '${_ids.length}.${uri.path.toLowerCase().endsWith('.m3u8') ? 'm3u8' : 'bin'}',
+      () => '${_ids.length}.${_hlsUrls.contains(uri) ? 'm3u8' : 'bin'}',
     );
     _urls[id] = uri;
     return _base.resolve('/$_secret/$id');
@@ -93,17 +99,30 @@ class MediaRelay {
 
   String rewritePlaylist(String text, Uri original) {
     _configureBuffer(text, original);
+    bool nextIsPlaylist = false;
     return text
         .split('\n')
         .map((line) {
           if (line.trim().isEmpty) return line;
           if (line.trimLeft().startsWith('#')) {
+            if (line.trimLeft().startsWith('#EXT-X-STREAM-INF:')) {
+              nextIsPlaylist = true;
+            }
+            final playlistAttribute =
+                line.trimLeft().startsWith('#EXT-X-MEDIA:') ||
+                line.trimLeft().startsWith('#EXT-X-I-FRAME-STREAM-INF:');
             return line.replaceAllMapped(
               RegExp(r'URI="([^"]+)"'),
-              (m) => 'URI="${register(original.resolve(m[1]!))}"',
+              (m) =>
+                  'URI="${register(original.resolve(m[1]!), isHls: playlistAttribute)}"',
             );
           }
-          return '${register(original.resolve(line.trim()))}';
+          final result = register(
+            original.resolve(line.trim()),
+            isHls: nextIsPlaylist,
+          );
+          nextIsPlaylist = false;
+          return '$result';
         })
         .join('\n');
   }
@@ -340,7 +359,7 @@ class MediaRelay {
           return;
         }
         response.write(
-          '''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Script Browser TV</title><style>html,body{margin:0;background:#080b0d;color:white;font:22px sans-serif;height:100%}video{width:100%;height:90vh;background:black}p{text-align:center;margin:8px}</style></head><body><video id="video" controls autoplay playsinline data-source="${_escape('$_media')}" data-hls="${_original!.path.toLowerCase().endsWith('.m3u8')}"></video><p id="status">Select Play to start the video.</p><p><button id="retry" style="font:inherit;padding:8px 24px">Retry playback</button></p><script src="/tv-hls.js"></script><script>
+          '''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Script Browser TV</title><style>html,body{margin:0;background:#080b0d;color:white;font:22px sans-serif;height:100%}video{width:100%;height:90vh;background:black}p{text-align:center;margin:8px}</style></head><body><video id="video" controls autoplay playsinline data-source="${_escape('$_media')}" data-hls="$sourceIsHls"></video><p id="status">Select Play to start the video.</p><p><button id="retry" style="font:inherit;padding:8px 24px">Retry playback</button></p><script src="/tv-hls.js"></script><script>
 $receiverPlayerScript
 </script></body></html>''',
         );
@@ -428,7 +447,9 @@ $receiverPlayerScript
       final type = upstream.headers.contentType?.mimeType ?? '';
       lastContentType = type;
       final playlist =
-          type.contains('mpegurl') || uri.path.toLowerCase().endsWith('.m3u8');
+          _hlsUrls.contains(source) ||
+          type.contains('mpegurl') ||
+          uri.path.toLowerCase().endsWith('.m3u8');
       if (playlist && request.method != 'HEAD' && upstream.statusCode == 200) {
         final text = await utf8.decoder
             .bind(upstream)
@@ -477,5 +498,6 @@ $receiverPlayerScript
     _server = null;
     _urls.clear();
     _ids.clear();
+    _hlsUrls.clear();
   }
 }

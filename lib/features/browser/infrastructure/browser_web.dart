@@ -26,6 +26,9 @@ class BrowserWeb implements BrowserEngine {
   final void Function(Uri)? onResource;
   InAppWebViewController? controller;
   Uri? _pendingNavigation;
+  final hlsMedia = <String>{};
+  bool isHlsMedia(Uri uri) =>
+      uri.path.toLowerCase().endsWith('.m3u8') || hlsMedia.contains('$uri');
   final mediaRequests = <String, Map<String, String>>{};
   void rememberMedia(
     String url, [
@@ -40,13 +43,24 @@ class BrowserWeb implements BrowserEngine {
     }
     url = uri.toString();
     if (blocker.blocks(url, pageUrl)) return;
-    if (mediaRequests.length < 60 &&
-        (headers.isNotEmpty || !mediaRequests.containsKey(url))) {
+    if (!mediaRequests.containsKey(url) && mediaRequests.length >= 60) {
+      final oldest = mediaRequests.keys.first;
+      mediaRequests.remove(oldest);
+      hlsMedia.remove(oldest);
+    }
+    if (headers.isNotEmpty || !mediaRequests.containsKey(url)) {
       mediaRequests[url] = Map.of(headers);
     }
   }
 
   Future<void> detectMedia() async {
+    await controller?.evaluateJavascript(
+      source: "window.postMessage('script-browser:scan-media:v1','*');",
+    );
+    // Give frame observers time to deliver the explicit refresh before rebuilding the picker.
+    if (controller != null) {
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+    }
     final raw = await controller?.evaluateJavascript(
       source: '''JSON.stringify((()=>{
       const configured=[];
@@ -182,7 +196,17 @@ class BrowserWeb implements BrowserEngine {
           rememberMedia(url, {
             'Referer': '$page',
             if (agent is String && agent.length < 2048) 'User-Agent': agent,
-          }, true);
+          }, data['kind'] == 'element' || data['kind'] == 'player');
+          final type = data['type'];
+          if (type is String &&
+              [
+                'hls',
+                'application/vnd.apple.mpegurl',
+                'application/x-mpegurl',
+              ].contains(type.toLowerCase()) &&
+              mediaRequests.containsKey(url)) {
+            hlsMedia.add(url);
+          }
           return null;
         },
       );
@@ -193,6 +217,7 @@ class BrowserWeb implements BrowserEngine {
     },
     onLoadStart: (c, url) async {
       mediaRequests.clear();
+      hlsMedia.clear();
       pageUrl = url?.toString() ?? 'about:blank';
       onStarted(pageUrl);
       await updateProtection();
