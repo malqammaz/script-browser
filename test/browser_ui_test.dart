@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:script_browser/features/browser/presentation/widgets/address_bar.dart';
 import 'package:script_browser/features/browser/presentation/widgets/scripts_dock.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:script_browser/features/browser/presentation/cast_dialog.dart';
@@ -8,6 +9,38 @@ import 'package:script_browser/features/browser/infrastructure/browser_web.dart'
 import 'package:script_browser/features/protection/domain/ad_blocker.dart';
 
 void main() {
+  testWidgets('Address controls fit a compact phone and remain usable', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var opened = 0, reloaded = 0, wentBack = 0;
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AddressBar(
+            controller: controller,
+            onOpen: () => opened++,
+            onReload: () => reloaded++,
+            onBack: () => wentBack++,
+          ),
+        ),
+      ),
+    );
+    expect(tester.getSize(find.byType(TextField)).width, greaterThan(0));
+    await tester.tap(find.byTooltip('Go'));
+    await tester.tap(find.byTooltip('Reload'));
+    await tester.tap(find.byTooltip('Back'));
+    expect(opened, 1);
+    expect(reloaded, 1);
+    expect(wentBack, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'Corner arrow minimizes the entire scripts area without losing output',
     (tester) async {

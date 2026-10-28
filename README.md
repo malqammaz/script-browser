@@ -180,3 +180,15 @@ The Scripts workspace has a down arrow in its upper-right corner. Tap it to mini
 A widget regression test verifies minimize/restore controls and preserved expanded output.
 
 Validation: 54 Flutter tests passed, both JavaScript detector/player test suites passed, and flutter analyze reported no issues.
+
+## LG HLS MSE player (1.6.4)
+
+Live Uqload diagnostics showed successful HTTP 200 segment responses, usually below one second, while the LG native HLS receiver repeatedly entered buffering. The phone video was paused during inspection. This points to the native playback path, but is not proof of a single root cause.
+
+For HLS receiver pages, the TV now prefers bundled HLS.js 1.7.3 when MediaSource Extensions are supported, with native playback as a compatibility fallback. MPEG-TS segments are transmuxed for MSE rather than relying solely on native HLS handling. The TV targets a 60-second forward buffer (maximum 120 seconds, 32 MiB buffer-size target) and retains 20 seconds behind; actual allocation depends on the browser. The separate phone cache retains its existing 128 MiB limit. Phone status now reports actual forward buffered seconds from the TV, alongside RAM cache usage. The retry button rebuilds the player at the current time.
+
+The library is served locally from the phone at a TV-IP-restricted endpoint. It is not fetched from a CDN at playback time. Upstream cookie scoping, cache limits, and rate-limit handling remain in place. Drive preview embedding is unchanged.
+
+Bundled upstream: https://www.npmjs.com/package/hls.js/v/1.7.3, Apache-2.0 license in `assets/vendor/hls-LICENSE.txt`. The npm tarball was verified against the registry SHA-512 integrity value. SHA-256 of `hls-1.7.3.min.js`: `a12e7ee1cd64a69dcdb314157e45dafcba705bfb0b1440b7935cb265d374423e`.
+
+References: https://github.com/video-dev/hls.js and https://webostv.developer.lge.com/develop/specifications/streaming-protocol-drm. Node receiver tests cover MSE selection, reported TV buffer, and recovery position. Relay tests cover the bundled script endpoint and receiver telemetry. LG playback must be verified after installing and refreshing the receiver.

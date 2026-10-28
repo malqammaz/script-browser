@@ -47,9 +47,12 @@ class _CastStatusBarState extends State<CastStatusBar> {
       _ => 'Cast session ready',
     };
     final buffer = relay?.buffer;
+    final tvBuffer = relay?.receiverEngine == 'hlsjs'
+        ? ' · TV buffer ${relay!.receiverBufferedSeconds.toStringAsFixed(0)}s'
+        : '';
     final details = buffer != null && buffer.usedBytes > 0
-        ? '$state · RAM ${(buffer.usedBytes / 1048576).toStringAsFixed(1)} / 128 MB'
-        : state;
+        ? '$state$tvBuffer · RAM ${(buffer.usedBytes / 1048576).toStringAsFixed(1)} / 128 MB'
+        : '$state$tvBuffer';
     return Material(
       color: Theme.of(context).colorScheme.secondaryContainer,
       child: ListTile(

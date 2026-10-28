@@ -3,9 +3,13 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'media_source.dart';
 import 'ram_media_buffer.dart';
 import 'receiver_player_script.dart';
+
+Future<String> _loadBundledHls() =>
+    rootBundle.loadString('assets/vendor/hls-1.7.3.min.js');
 
 /// Streams bytes in memory; URLs are registered explicitly, never an open proxy.
 class MediaRelay {
@@ -20,11 +24,15 @@ class MediaRelay {
   Uri get browserUrl => _base.resolve('/tv');
   String receiverState = 'waiting';
   double receiverTime = 0;
+  String receiverEngine = 'native';
+  double receiverBufferedSeconds = 0;
+  int receiverReadyState = 0;
   int? lastUpstreamStatus;
   String? lastContentType;
   String? lastFailure;
   MediaRelay({
     required this.cookies,
+    this.loadPlayerScript = _loadBundledHls,
     this.headers = const {},
     int bufferBytes = 128 * 1024 * 1024,
     this.maxSegmentBytes = 16 * 1024 * 1024,
@@ -35,6 +43,7 @@ class MediaRelay {
   final int maxSegmentBytes;
   final double prefetchSeconds;
   final Duration prefetchDelay;
+  final Future<String> Function() loadPlayerScript;
   final _pending = <Uri, Future<BufferedSegment?>>{};
   List<(Uri, double)> _plan = [];
   Uri? _planUrl;
@@ -309,6 +318,14 @@ class MediaRelay {
       final parts = request.uri.pathSegments;
       if (request.connectionInfo?.remoteAddress.address == _peer &&
           request.method == 'GET' &&
+          request.uri.path == '/tv-hls.js') {
+        response.headers.contentType = ContentType('application', 'javascript');
+        response.headers.set('Cache-Control', 'public, max-age=3600');
+        response.write(await loadPlayerScript());
+        return;
+      }
+      if (request.connectionInfo?.remoteAddress.address == _peer &&
+          request.method == 'GET' &&
           request.uri.path == '/tv') {
         receiverPageOpened = true;
         response.headers.contentType = ContentType.html;
@@ -323,7 +340,7 @@ class MediaRelay {
           return;
         }
         response.write(
-          '''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Script Browser TV</title><style>html,body{margin:0;background:#080b0d;color:white;font:22px sans-serif;height:100%}video{width:100%;height:90vh;background:black}p{text-align:center;margin:8px}</style></head><body><video id="video" controls autoplay playsinline src="${_escape('$_media')}"></video><p id="status">Select Play to start the video.</p><p><button id="retry" style="font:inherit;padding:8px 24px">Retry playback</button></p><script>
+          '''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Script Browser TV</title><style>html,body{margin:0;background:#080b0d;color:white;font:22px sans-serif;height:100%}video{width:100%;height:90vh;background:black}p{text-align:center;margin:8px}</style></head><body><video id="video" controls autoplay playsinline data-source="${_escape('$_media')}" data-hls="${_original!.path.toLowerCase().endsWith('.m3u8')}"></video><p id="status">Select Play to start the video.</p><p><button id="retry" style="font:inherit;padding:8px 24px">Retry playback</button></p><script src="/tv-hls.js"></script><script>
 $receiverPlayerScript
 </script></body></html>''',
         );
@@ -354,6 +371,18 @@ $receiverPlayerScript
         ].contains(state)) {
           receiverState = state!;
         }
+        receiverEngine = request.uri.queryParameters['engine'] == 'hlsjs'
+            ? 'hlsjs'
+            : 'native';
+        final ahead = double.tryParse(
+          request.uri.queryParameters['ahead'] ?? '',
+        );
+        if (ahead != null && ahead.isFinite) {
+          receiverBufferedSeconds = ahead.clamp(0, 3600);
+        }
+        receiverReadyState =
+            (int.tryParse(request.uri.queryParameters['ready'] ?? '') ?? 0)
+                .clamp(0, 4);
         receiverTime =
             double.tryParse(request.uri.queryParameters['time'] ?? '') ?? 0;
         response.statusCode = 204;

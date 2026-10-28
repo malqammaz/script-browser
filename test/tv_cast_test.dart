@@ -52,6 +52,8 @@ void main() {
       });
       final original = Uri.parse('http://127.0.0.1:${upstream.port}/movie.mp4');
       final relay = MediaRelay(
+        loadPlayerScript: () =>
+            File('assets/vendor/hls-1.7.3.min.js').readAsString(),
         cookies: (uri) async {
           expect(uri.host, '127.0.0.1');
           return 'session=allowed';
@@ -89,13 +91,29 @@ void main() {
         final status = await (await client.getUrl(
           url.replace(
             path: '/tv-status',
-            queryParameters: {'state': 'playing', 'time': '4.5'},
+            queryParameters: {
+              'state': 'playing',
+              'time': '4.5',
+              'engine': 'hlsjs',
+              'ahead': '12.5',
+              'ready': '4',
+            },
           ),
         )).close();
         expect(status.statusCode, 204);
         await status.drain<void>();
         expect(relay.receiverState, 'playing');
         expect(relay.receiverTime, 4.5);
+        expect(relay.receiverEngine, 'hlsjs');
+        expect(relay.receiverBufferedSeconds, 12.5);
+        expect(relay.receiverReadyState, 4);
+        final player = await (await client.getUrl(
+          url.replace(path: '/tv-hls.js'),
+        )).close();
+        expect(player.statusCode, 200);
+        expect(player.headers.contentType?.mimeType, 'application/javascript');
+        final playerJs = await utf8.decoder.bind(player).join();
+        expect(playerJs.length, greaterThan(100000));
       } finally {
         client.close(force: true);
         await relay.close();

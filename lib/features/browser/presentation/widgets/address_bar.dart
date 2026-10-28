@@ -14,8 +14,9 @@ class AddressBar extends StatelessWidget {
   final VoidCallback onBack;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 12),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     child: Row(
+      spacing: 4,
       children: [
         IconButton(
           tooltip: 'Back',
@@ -32,8 +33,24 @@ class AddressBar extends StatelessWidget {
             onSubmitted: (_) => onOpen(),
             decoration: const InputDecoration(
               hintText: 'Search Google or enter a URL',
-              border: OutlineInputBorder(),
+              filled: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(14)),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(14)),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(14)),
+                borderSide: BorderSide.none,
+              ),
               isDense: true,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
             ),
           ),
         ),

@@ -18,15 +18,21 @@ class ScriptPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-    color: Theme.of(context).colorScheme.surfaceContainer,
+    color: Theme.of(context).colorScheme.surfaceContainerLow,
     child: Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Column(
         children: [
           Row(
+            spacing: 8,
             children: [
               Expanded(
-                child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
               ),
               FilledButton.icon(
                 onPressed: onRun,
@@ -45,6 +51,12 @@ class ScriptPanel extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+            dense: true,
+            visualDensity: VisualDensity.compact,
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: EdgeInsets.zero,
+            shape: const RoundedRectangleBorder(),
+            collapsedShape: const RoundedRectangleBorder(),
             children: [
               if (running) const LinearProgressIndicator(),
               SizedBox(

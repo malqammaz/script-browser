@@ -13,15 +13,15 @@ class _ScriptsDockState extends State<ScriptsDock> {
   bool minimized = false;
   @override
   Widget build(BuildContext context) => Material(
-    color: Theme.of(context).colorScheme.surfaceContainer,
+    color: Theme.of(context).colorScheme.surfaceContainerLow,
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          height: 48,
+          height: 44,
           child: Row(
             children: [
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               const Icon(Icons.javascript, size: 20),
               const SizedBox(width: 8),
               Expanded(
