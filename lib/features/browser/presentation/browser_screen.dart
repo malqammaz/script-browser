@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../scripts/application/anime_library_sync.dart';
 import '../../../core/storage/settings_store.dart';
 import '../../protection/presentation/protection_dialog.dart';
 import '../../scripts/domain/script.dart';
@@ -29,6 +31,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
   late final BrowserSession session;
   late final BrowserWeb web;
   String _lastUrl = '';
+  static const tokenKey = 'anime_library_github_token';
+  final secureStorage = const FlutterSecureStorage();
+  final librarySync = AnimeLibrarySync();
 
   @override
   void initState() {
@@ -36,6 +41,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
     session = BrowserSession(
       settingsStore: widget.settingsStore,
       repositories: widget.repositories,
+      syncLibrary: (data) async {
+        final token = await secureStorage.read(key: tokenKey) ?? '';
+        return librarySync.sync(data, token);
+      },
     );
     web = BrowserWeb(
       blocker: session.blocker,
@@ -138,6 +147,80 @@ class _BrowserScreenState extends State<BrowserScreen> {
     );
   }
 
+  Future<void> configureLibrarySync() async {
+    final configured = await secureStorage.containsKey(key: tokenKey);
+    if (!mounted) return;
+    final controller = TextEditingController();
+    try {
+      final selection = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('مزامنة مكتبة الأنمي'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'malqammaz/anime-library → library.json\nبعد الإعداد، شغّل sync-anime-library.js على صفحة الأنمي؛ يتم السحب والدمج والرفع تلقائياً.',
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  obscureText: true,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  decoration: InputDecoration(
+                    labelText: 'GitHub fine-grained token',
+                    helperText: configured
+                        ? 'التوكن محفوظ؛ اتركه فارغاً للاحتفاظ به'
+                        : 'Contents: Read and write لهذا الريبو فقط',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'يحفظ التوكن مشفراً داخل التطبيق ولا يتم إرساله لصفحة الأنمي.',
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            if (configured)
+              TextButton(
+                onPressed: () => Navigator.pop(context, 'disable'),
+                child: const Text('إيقاف المزامنة وحذف التوكن'),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, 'save'),
+              child: const Text('حفظ وتفعيل'),
+            ),
+          ],
+        ),
+      );
+      if (selection == 'disable') {
+        await secureStorage.delete(key: tokenKey);
+        notice('تم إيقاف المزامنة وحذف التوكن من التطبيق');
+      } else if (selection == 'save') {
+        final token = controller.text.trim();
+        if (token.isEmpty && !configured) {
+          throw const FormatException('أدخل توكن GitHub لتفعيل المزامنة.');
+        }
+        if (token.isNotEmpty) {
+          await AnimeLibrarySync.githubRequest('GET', token, null);
+          await secureStorage.write(key: tokenKey, value: token);
+        }
+        notice('المزامنة جاهزة؛ شغّل sync-anime-library.js على صفحة الأنمي');
+      }
+    } finally {
+      controller.clear();
+      controller.dispose();
+    }
+  }
+
   @override
   void dispose() {
     session.removeListener(onSessionChanged);
@@ -151,6 +234,13 @@ class _BrowserScreenState extends State<BrowserScreen> {
     appBar: AppBar(
       title: const Text('متصفح السكربتات'),
       actions: [
+        IconButton(
+          tooltip: 'مزامنة مكتبة الأنمي',
+          onPressed: session.running
+              ? null
+              : () => handle(configureLibrarySync),
+          icon: const Icon(Icons.cloud_upload_outlined),
+        ),
         IconButton(
           tooltip: 'حماية الإعلانات',
           onPressed: () => handle(editProtection),

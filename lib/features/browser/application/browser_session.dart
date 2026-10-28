@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../../../core/storage/settings_store.dart';
 import '../../protection/domain/ad_blocker.dart';
@@ -16,10 +17,13 @@ class BrowserSession extends ChangeNotifier {
     required this.settingsStore,
     required this.repositories,
     this.runner = const ScriptRunner(),
+    this.syncLibrary,
   });
   final SettingsStore settingsStore;
   final ScriptRepositoryFactory repositories;
   final ScriptRunner runner;
+  final Future<Map<String, dynamic>> Function(Map<String, dynamic>)?
+  syncLibrary;
   final blocker = AdBlocker();
   late final siteScripts = SiteScriptsController(
     DomainScriptCatalog(repositories),
@@ -211,6 +215,10 @@ class BrowserSession extends ChangeNotifier {
     result = 'جارٍ التنفيذ…';
     _changed();
     final initialNavigation = _navigation;
+    final syncRequested =
+        script.name == 'sync-anime-library.js' &&
+        script.domain == 'yalanime.com' &&
+        ['yalanime.com', 'www.yalanime.com'].contains(Uri.tryParse(url)?.host);
     try {
       final output = await runner.run(
         runtime: engine,
@@ -218,7 +226,32 @@ class BrowserSession extends ChangeNotifier {
         isCancelled: () => _disposed,
         navigationChanged: () => _navigation != initialNavigation,
       );
-      if (!_disposed) result = output;
+      if (!_disposed) {
+        result = output;
+        if (syncRequested &&
+            syncLibrary != null &&
+            initialNavigation == _navigation) {
+          try {
+            final data = jsonDecode(output);
+            if (data is Map<String, dynamic> &&
+                data['action'] == 'syncAnimeLibrary') {
+              result = 'تم السحب؛ جارٍ تحديث مكتبة GitHub…';
+              _changed();
+              final status = await syncLibrary!(data);
+              if (!_disposed) {
+                result = const JsonEncoder.withIndent(
+                  '  ',
+                ).convert({...data, 'sync': status});
+              }
+            }
+          } catch (error) {
+            if (!_disposed) {
+              result =
+                  '$output\n\nتعذر تحديث المكتبة: $error\nالبيانات المسحوبة محفوظة في النتيجة؛ يمكنك إعادة المحاولة.';
+            }
+          }
+        }
+      }
     } finally {
       running = false;
       _changed();

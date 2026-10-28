@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:script_browser/core/storage/settings_store.dart';
 import 'package:script_browser/features/browser/application/browser_session.dart';
@@ -6,6 +7,50 @@ import 'package:script_browser/features/scripts/domain/script.dart';
 import 'support/fakes.dart';
 
 void main() {
+  test(
+    'Only the explicit sync script on Yalanime invokes the native uploader',
+    () async {
+      var uploads = 0;
+      final engine = FakeBrowserEngine()
+        ..output = jsonEncode({
+          'ok': true,
+          'value': {
+            'action': 'syncAnimeLibrary',
+            'title': 'Test',
+            'episodes': [],
+          },
+        });
+      final session = BrowserSession(
+        settingsStore: MemorySettingsStore(),
+        repositories: (_) => FakeScriptRepository(),
+        runner: const ScriptRunner(pollInterval: Duration(milliseconds: 1)),
+        syncLibrary: (data) async {
+          uploads++;
+          return {'success': true};
+        },
+      )..engine = engine;
+      session.script = const ScriptDocument(
+        name: 'extract-episodes.js',
+        source: 'return {};',
+        domain: 'yalanime.com',
+      );
+      session.pageFinished('https://yalanime.com/anime/');
+      await session.run();
+      expect(uploads, 0);
+      session.script = const ScriptDocument(
+        name: 'sync-anime-library.js',
+        source: 'return {};',
+        domain: 'yalanime.com',
+      );
+      await session.run();
+      expect(uploads, 1);
+      expect(session.result, contains('"success": true'));
+      session.pageFinished('https://other.example/');
+      await session.run();
+      expect(uploads, 1);
+      session.dispose();
+    },
+  );
   late MemorySettingsStore store;
   late FakeScriptRepository repository;
   late FakeBrowserEngine engine;
