@@ -33,7 +33,7 @@ class BrowserSession extends ChangeNotifier {
   GitHubConfig github = const GitHubConfig();
   ScriptDocument script = ScriptDocument.example;
   String url = 'about:blank';
-  String result = 'النتائج ستظهر هنا';
+  String result = 'Script output will appear here';
   int progress = 100;
   int blockedCount = 0;
   int _navigation = 0;
@@ -142,11 +142,13 @@ class BrowserSession extends ChangeNotifier {
   Future<void> selectScript(ScriptFile file) async {
     final domain = siteScripts.domain;
     if (domain.isEmpty) {
-      throw const FormatException('افتح موقعًا أولًا لعرض سكربتاته');
+      throw const FormatException('Open a website first to see its scripts');
     }
     final scoped = scriptsForDomain(github, domain);
     if (!file.path.startsWith('${scoped.folder}/')) {
-      throw const FormatException('السكربت لا يخص الموقع الحالي');
+      throw const FormatException(
+        'This script does not belong to the current site',
+      );
     }
     busy = true;
     _changed();
@@ -154,7 +156,9 @@ class BrowserSession extends ChangeNotifier {
       final source = await repositories(scoped).source(file.path);
       if (_disposed) return;
       if (domain != siteScripts.domain) {
-        throw StateError('تغيّر الموقع؛ اختر سكربت الموقع الحالي');
+        throw StateError(
+          'The site changed; choose a script for the current site',
+        );
       }
       final selected = ScriptDocument(
         name: file.name,
@@ -220,7 +224,7 @@ class BrowserSession extends ChangeNotifier {
   Future<void> run() async {
     if (!canRun || _disposed) return;
     running = true;
-    result = 'جارٍ التنفيذ…';
+    result = 'Running…';
     _changed();
     final initialNavigation = _navigation;
     final syncRequested =
@@ -243,7 +247,7 @@ class BrowserSession extends ChangeNotifier {
             final data = jsonDecode(output);
             if (data is Map<String, dynamic> &&
                 data['action'] == 'syncAnimeLibrary') {
-              result = 'تم السحب؛ جارٍ تحديث مكتبة GitHub…';
+              result = 'Extraction complete; updating the GitHub library…';
               _changed();
               final status = await syncLibrary!(data);
               if (!_disposed) {
@@ -255,7 +259,7 @@ class BrowserSession extends ChangeNotifier {
           } catch (error) {
             if (!_disposed) {
               result =
-                  '$output\n\nتعذر تحديث المكتبة: $error\nالبيانات المسحوبة محفوظة في النتيجة؛ يمكنك إعادة المحاولة.';
+                  '$output\n\nCould not update the library: $error\nExtracted data is kept in the output; you can retry.';
             }
           }
         }

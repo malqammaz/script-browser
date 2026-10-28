@@ -11,7 +11,7 @@ class GitHubScriptRepository implements ScriptRepository {
     final parts = config.repository.trim().split('/');
     if (parts.length != 2 ||
         parts.any((p) => !RegExp(r'^[\w.-]+$').hasMatch(p))) {
-      throw const FormatException('اكتب المستودع بالشكل owner/repo');
+      throw const FormatException('Enter a repository as owner/repo');
     }
     return Uri.https(
       'api.github.com',
@@ -36,7 +36,7 @@ class GitHubScriptRepository implements ScriptRepository {
           .timeout(const Duration(seconds: 20));
       if (response.statusCode != 200) {
         throw ScriptRepositoryException(
-          'GitHub ${response.statusCode}: تأكد من المستودع العام والفرع والمجلد، أو حاول لاحقًا',
+          'GitHub ${response.statusCode}: check the public repository, branch, and folder, or try again later',
           statusCode: response.statusCode,
         );
       }
@@ -51,7 +51,7 @@ class GitHubScriptRepository implements ScriptRepository {
     final data = await read(
       config.folder.trim().replaceAll(RegExp(r'^/+|/+$'), ''),
     );
-    if (data is! List) throw const FormatException('المسار يجب أن يكون مجلدًا');
+    if (data is! List) throw const FormatException('The path must be a folder');
     return data
         .whereType<Map<String, dynamic>>()
         .where(
@@ -74,7 +74,9 @@ class GitHubScriptRepository implements ScriptRepository {
     if (data is! Map ||
         data['encoding'] != 'base64' ||
         data['content'] is! String) {
-      throw const FormatException('تعذر قراءة الملف أو حجمه كبير');
+      throw const FormatException(
+        'Could not read the file, or it is too large',
+      );
     }
     return utf8.decode(
       base64Decode((data['content'] as String).replaceAll(RegExp(r'\s'), '')),

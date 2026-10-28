@@ -25,7 +25,7 @@ class _ScriptEditorDialogState extends State<ScriptEditorDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const Text(
-            'السكربت يستطيع قراءة بيانات الصفحة والتفاعل معها. شغّل فقط كودًا تثق فيه. استخدم return لإرجاع نتيجة، ويمكن استخدام await.',
+            'Scripts can read and interact with this page. Only run code you trust. Use return for a result; await is supported.',
           ),
           const SizedBox(height: 12),
           Flexible(
@@ -43,11 +43,11 @@ class _ScriptEditorDialogState extends State<ScriptEditorDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('إلغاء'),
+        child: const Text('Cancel'),
       ),
       FilledButton(
         onPressed: () => Navigator.pop(context, editor.text),
-        child: const Text('حفظ وإغلاق'),
+        child: const Text('Save and close'),
       ),
     ],
   );

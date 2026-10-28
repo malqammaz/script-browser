@@ -31,7 +31,7 @@ class _GitHubConfigDialogState extends State<GitHubConfigDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('سكربتات GitHub'),
+    title: const Text('GitHub scripts'),
     content: SingleChildScrollView(
       child: Form(
         key: form,
@@ -39,10 +39,10 @@ class _GitHubConfigDialogState extends State<GitHubConfigDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'مستودع عام. يُضاف دومين الصفحة تلقائيًا إلى المجلد الجذر، مثل scripts/example.com/click.js.',
+              'Use a public repository. The site domain is appended to the root folder, for example scripts/example.com/click.js.',
             ),
             if (widget.domain.isNotEmpty)
-              Text('الموقع الحالي: ${widget.domain}'),
+              Text('Current site: ${widget.domain}'),
             TextFormField(
               controller: repository,
               textDirection: TextDirection.ltr,
@@ -50,22 +50,23 @@ class _GitHubConfigDialogState extends State<GitHubConfigDialog> {
               validator: (value) =>
                   RegExp(r'^[\w.-]+/[\w.-]+$').hasMatch(value?.trim() ?? '')
                   ? null
-                  : 'اكتب owner/repo',
+                  : 'Enter owner/repo',
             ),
             TextFormField(
               controller: branch,
               textDirection: TextDirection.ltr,
               decoration: const InputDecoration(
-                labelText: 'الفرع أو commit SHA',
+                labelText: 'Branch or commit SHA',
               ),
-              validator: (value) =>
-                  value == null || value.trim().isEmpty ? 'أدخل الفرع' : null,
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? 'Enter a branch'
+                  : null,
             ),
             TextField(
               controller: folder,
               textDirection: TextDirection.ltr,
               decoration: const InputDecoration(
-                labelText: 'مجلد السكربتات الجذر (مثل scripts)',
+                labelText: 'Scripts root folder (for example scripts)',
               ),
             ),
           ],
@@ -75,7 +76,7 @@ class _GitHubConfigDialogState extends State<GitHubConfigDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('إلغاء'),
+        child: const Text('Cancel'),
       ),
       FilledButton(
         onPressed: () {
@@ -89,7 +90,7 @@ class _GitHubConfigDialogState extends State<GitHubConfigDialog> {
             ),
           );
         },
-        child: const Text('تحميل القائمة'),
+        child: const Text('Load scripts'),
       ),
     ],
   );

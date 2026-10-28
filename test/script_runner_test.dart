@@ -43,7 +43,7 @@ void main() {
           isCancelled: () => false,
           navigationChanged: () => true,
         );
-    expect(output, contains('تغيّرت الصفحة'));
+    expect(output, contains('The page changed'));
     expect(runtime.evaluations, 0);
     expect(runtime.commands.last, startsWith('delete window['));
   });
@@ -59,7 +59,7 @@ void main() {
           isCancelled: () => false,
           navigationChanged: () => false,
         );
-    expect(output, contains('انتهى انتظار'));
+    expect(output, contains('No result after'));
     expect(runtime.commands.last, startsWith('delete window['));
   });
 }

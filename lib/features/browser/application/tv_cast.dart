@@ -130,7 +130,7 @@ class TvCast {
             ).firstMatch(text)?.group(1) ??
             '${response.statusCode}';
         throw StateError(
-          'التلفزيون رفض الطلب ($action، $code). جرّب رابط فيديو آخر.',
+          'The TV rejected the request ($action, $code). Try another video link.',
         );
       }
       return text;
@@ -156,7 +156,7 @@ class TvCast {
     )).first;
     final addresses = interfaces.expand((i) => i.addresses).toList();
     if (addresses.isEmpty) {
-      throw StateError('اتصل بنفس شبكة Wi-Fi الخاصة بالتلفزيون.');
+      throw StateError('Connect to the same Wi-Fi as your TV.');
     }
     final prefix = peer.address.split('.').take(3).join('.');
     final local =

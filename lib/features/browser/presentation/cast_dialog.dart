@@ -49,7 +49,7 @@ class _CastDialogState extends State<CastDialog> {
     setState(() {
       busy = true;
       failed = false;
-      status = 'جارٍ البحث عن التلفزيونات والفيديوهات…';
+      status = 'Finding TVs and videos…';
     });
     try {
       await widget.web.detectMedia();
@@ -63,14 +63,14 @@ class _CastDialogState extends State<CastDialog> {
         final urls = widget.web.mediaRequests.keys;
         if (!urls.contains(media)) media = urls.lastOrNull;
         status = found.isEmpty
-            ? 'لم نجد تلفزيوناً. تأكد أن الهاتف والتلفزيون على نفس Wi-Fi، ثم أعد البحث.'
+            ? 'No TVs found. Connect your phone and TV to the same Wi-Fi, then scan again.'
             : '';
       });
     } catch (_) {
       if (mounted) {
         setState(() {
           failed = true;
-          status = 'تعذر البحث. تحقق من اتصال Wi-Fi ثم أعد المحاولة.';
+          status = 'Discovery failed. Check Wi-Fi and try again.';
         });
       }
     } finally {
@@ -82,7 +82,7 @@ class _CastDialogState extends State<CastDialog> {
     setState(() {
       busy = true;
       failed = false;
-      status = 'جارٍ الاتصال…';
+      status = 'Connecting…';
     });
     try {
       await task();
@@ -97,7 +97,7 @@ class _CastDialogState extends State<CastDialog> {
         setState(() {
           failed = true;
           status =
-              'تعذر بدء البث. تحقق من الرابط واتصال التلفزيون، ثم حاول مجدداً.';
+              'Could not start casting. Check the video link and TV connection, then try again.';
         });
       }
     } finally {
@@ -125,7 +125,7 @@ class _CastDialogState extends State<CastDialog> {
               isDrivePreviewMedia(uri)),
       headers: widget.web.mediaRequests[raw] ?? {'Referer': widget.web.pageUrl},
     );
-  }, 'جلسة البث جاهزة');
+  }, 'Cast session ready');
 
   Widget get connection => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -135,15 +135,15 @@ class _CastDialogState extends State<CastDialog> {
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.cast_connected),
           title: Text(widget.cast.connected!.name),
-          subtitle: const Text('أبقِ التطبيق مفتوحاً أثناء البث'),
+          subtitle: const Text('Keep this app open while casting'),
         ),
         if (widget.cast.browserReceiver) ...[
           const Text(
-            'على التلفزيون',
+            'On your TV',
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           const Text(
-            '1. افتح Web Browser على LG.\n2. أدخل العنوان التالي واحفظه في المفضلة.\n3. اضغط Play في مشغل التلفزيون.',
+            '1. Open Web Browser on your LG TV.\n2. Enter this address and bookmark it.\n3. Press Play in the TV player.',
           ),
           const SizedBox(height: 12),
           SelectableText(
@@ -156,13 +156,13 @@ class _CastDialogState extends State<CastDialog> {
               await Clipboard.setData(
                 ClipboardData(text: '${widget.cast.receiverUrl}'),
               );
-              if (mounted) setState(() => status = 'تم نسخ عنوان التلفزيون');
+              if (mounted) setState(() => status = 'TV address copied');
             },
             icon: const Icon(Icons.copy),
-            label: const Text('نسخ العنوان'),
+            label: const Text('Copy address'),
           ),
           const Text(
-            'التحكم بالتشغيل والصوت من التلفزيون. يظهر حجم RAM buffer داخل المشغل للفيديوهات المدعومة.',
+            'Control playback and volume on your TV. Supported streams show RAM buffer usage in the player.',
           ),
         ] else
           Wrap(
@@ -175,10 +175,10 @@ class _CastDialogState extends State<CastDialog> {
                           widget.cast.connected!,
                           'Pause',
                         ).then((_) {}),
-                        'تم الإيقاف المؤقت',
+                        'Playback paused',
                       ),
                 icon: const Icon(Icons.pause),
-                label: const Text('إيقاف مؤقت'),
+                label: const Text('Pause'),
               ),
               TextButton.icon(
                 onPressed: busy
@@ -187,28 +187,28 @@ class _CastDialogState extends State<CastDialog> {
                         () => TvCast.command(widget.cast.connected!, 'Play', {
                           'Speed': '1',
                         }).then((_) {}),
-                        'تم الاستئناف',
+                        'Playback resumed',
                       ),
                 icon: const Icon(Icons.play_arrow),
-                label: const Text('استئناف'),
+                label: const Text('Resume'),
               ),
             ],
           ),
         OutlinedButton.icon(
           onPressed: busy
               ? null
-              : () => action(widget.cast.stop, 'تم إيقاف البث'),
+              : () => action(widget.cast.stop, 'Casting stopped'),
           icon: const Icon(Icons.stop_circle_outlined),
-          label: const Text('إيقاف البث'),
+          label: const Text('Stop casting'),
         ),
       ] else
-        const Text('اختر التلفزيون والفيديو، ثم اضغط بدء البث.'),
+        const Text('Choose a TV and video, then select Start casting.'),
     ],
   );
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('البث إلى التلفزيون'),
+    title: const Text('Cast to TV'),
     content: SizedBox(
       width: 480,
       height: MediaQuery.sizeOf(context).height * .62,
@@ -225,15 +225,15 @@ class _CastDialogState extends State<CastDialog> {
               controlsBuilder: (_, details) => const SizedBox.shrink(),
               steps: [
                 Step(
-                  title: const Text('اختر التلفزيون'),
+                  title: const Text('Choose a TV'),
                   isActive: step >= 0,
                   content: Column(
                     children: [
-                      const Text('يجب أن يكون الجهازان على نفس Wi-Fi.'),
+                      const Text('Both devices must be on the same Wi-Fi.'),
                       if (!busy && devices.isEmpty)
                         const Padding(
                           padding: EdgeInsets.all(12),
-                          child: Text('لا توجد أجهزة متاحة بعد.'),
+                          child: Text('No devices available yet.'),
                         ),
                       for (final tv in devices)
                         ListTile(
@@ -255,20 +255,20 @@ class _CastDialogState extends State<CastDialog> {
                       TextButton.icon(
                         onPressed: busy ? null : scan,
                         icon: const Icon(Icons.refresh),
-                        label: const Text('إعادة البحث'),
+                        label: const Text('Scan again'),
                       ),
                     ],
                   ),
                 ),
                 Step(
-                  title: const Text('اختر الفيديو'),
+                  title: const Text('Choose a video'),
                   isActive: step >= 1,
                   content: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       if (widget.web.mediaRequests.isEmpty)
                         const Text(
-                          'شغّل الفيديو في الصفحة ثم اضغط تحديث الفيديوهات، أو الصق رابطاً مباشراً.',
+                          'Play the video on the page, then refresh videos, or paste a direct link.',
                         ),
                       for (final url in widget.web.mediaRequests.keys)
                         ListTile(
@@ -279,20 +279,20 @@ class _CastDialogState extends State<CastDialog> {
                           ),
                           subtitle: Text(
                             publicDrivePreview(Uri.parse(url)) != null
-                                ? 'Google Drive · معاينة عامة'
+                                ? 'Google Drive · Public preview'
                                 : Uri.parse(
                                     url,
                                   ).path.toLowerCase().endsWith('.m3u8')
-                                ? 'HLS · بث متكيف'
-                                : 'فيديو مباشر',
+                                ? 'HLS · Adaptive stream'
+                                : 'Direct video',
                           ),
                           trailing: IconButton(
-                            tooltip: 'تفاصيل الرابط',
+                            tooltip: 'Link details',
                             icon: const Icon(Icons.info_outline),
                             onPressed: () => showDialog<void>(
                               context: context,
                               builder: (_) => AlertDialog(
-                                title: const Text('رابط الفيديو'),
+                                title: const Text('Video URL'),
                                 content: SingleChildScrollView(
                                   child: SelectableText(
                                     url,
@@ -302,7 +302,7 @@ class _CastDialogState extends State<CastDialog> {
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.pop(context),
-                                    child: const Text('إغلاق'),
+                                    child: const Text('Close'),
                                   ),
                                 ],
                               ),
@@ -337,10 +337,10 @@ class _CastDialogState extends State<CastDialog> {
                                 }
                               },
                         icon: const Icon(Icons.refresh),
-                        label: const Text('تحديث الفيديوهات'),
+                        label: const Text('Refresh videos'),
                       ),
                       ExpansionTile(
-                        title: const Text('رابط يدوي وخيارات متقدمة'),
+                        title: const Text('Manual link and advanced options'),
                         children: [
                           TextField(
                             controller: manual,
@@ -356,7 +356,7 @@ class _CastDialogState extends State<CastDialog> {
                             onChanged: busy
                                 ? null
                                 : (value) => setState(() => lgBrowser = value),
-                            title: const Text('استخدام متصفح LG للفيديو'),
+                            title: const Text('Use the LG browser for video'),
                           ),
                         ],
                       ),
@@ -364,7 +364,7 @@ class _CastDialogState extends State<CastDialog> {
                   ),
                 ),
                 Step(
-                  title: const Text('الاتصال والتشغيل'),
+                  title: const Text('Connect and play'),
                   isActive: step >= 2,
                   content: connection,
                 ),
@@ -387,12 +387,12 @@ class _CastDialogState extends State<CastDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('إغلاق'),
+        child: const Text('Close'),
       ),
       if (step > 0)
         TextButton(
           onPressed: busy ? null : () => setState(() => step--),
-          child: const Text('السابق'),
+          child: const Text('Back'),
         ),
       if (step < 2)
         FilledButton(
@@ -403,7 +403,7 @@ class _CastDialogState extends State<CastDialog> {
                       : media == null && manual.text.trim().isEmpty)
               ? null
               : () => setState(() => step++),
-          child: const Text('التالي'),
+          child: const Text('Next'),
         ),
       if (step == 2 && selected != null)
         FilledButton.icon(
@@ -411,7 +411,7 @@ class _CastDialogState extends State<CastDialog> {
               ? null
               : connect,
           icon: const Icon(Icons.cast),
-          label: Text(failed ? 'إعادة المحاولة' : 'بدء البث'),
+          label: Text(failed ? 'Retry' : 'Start casting'),
         ),
     ],
   );

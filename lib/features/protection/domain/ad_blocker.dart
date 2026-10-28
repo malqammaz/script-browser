@@ -105,7 +105,9 @@ class AdBlocker {
       if (!RegExp(
         r'^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,63}$',
       ).hasMatch(domain)) {
-        throw FormatException('أدخل اسم نطاق فقط مثل ads.example.com: $input');
+        throw FormatException(
+          'Enter a domain name only, such as ads.example.com: $input',
+        );
       }
       result.add(domain);
     }

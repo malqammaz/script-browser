@@ -16,6 +16,7 @@ import '../infrastructure/browser_web.dart';
 import 'widgets/address_bar.dart';
 import 'widgets/cast_status_bar.dart';
 import 'widgets/script_panel.dart';
+import 'widgets/scripts_dock.dart';
 
 class BrowserScreen extends StatefulWidget {
   const BrowserScreen({
@@ -159,14 +160,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
       final selection = await showDialog<String>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('مزامنة مكتبة الأنمي'),
+          title: const Text('Anime library sync'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'malqammaz/anime-library → library.json\nبعد الإعداد، شغّل sync-anime-library.js على صفحة الأنمي؛ يتم السحب والدمج والرفع تلقائياً.',
+                  'malqammaz/anime-library → library.json\nAfter setup, run sync-anime-library.js on an anime page to extract, merge, and upload automatically.',
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -177,13 +178,13 @@ class _BrowserScreenState extends State<BrowserScreen> {
                   decoration: InputDecoration(
                     labelText: 'GitHub fine-grained token',
                     helperText: configured
-                        ? 'التوكن محفوظ؛ اتركه فارغاً للاحتفاظ به'
-                        : 'Contents: Read and write لهذا الريبو فقط',
+                        ? 'Token saved; leave blank to keep it'
+                        : 'Contents: Read and write for this repository only',
                   ),
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'يحفظ التوكن مشفراً داخل التطبيق ولا يتم إرساله لصفحة الأنمي.',
+                  'The token is stored securely in the app and is not sent to the anime page.',
                 ),
               ],
             ),
@@ -192,32 +193,32 @@ class _BrowserScreenState extends State<BrowserScreen> {
             if (configured)
               TextButton(
                 onPressed: () => Navigator.pop(context, 'disable'),
-                child: const Text('إيقاف المزامنة وحذف التوكن'),
+                child: const Text('Disable sync and delete token'),
               ),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('إلغاء'),
+              child: const Text('Cancel'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, 'save'),
-              child: const Text('حفظ وتفعيل'),
+              child: const Text('Save and enable'),
             ),
           ],
         ),
       );
       if (selection == 'disable') {
         await secureStorage.delete(key: tokenKey);
-        notice('تم إيقاف المزامنة وحذف التوكن من التطبيق');
+        notice('Sync disabled and token deleted from the app');
       } else if (selection == 'save') {
         final token = controller.text.trim();
         if (token.isEmpty && !configured) {
-          throw const FormatException('أدخل توكن GitHub لتفعيل المزامنة.');
+          throw const FormatException('Enter a GitHub token to enable sync.');
         }
         if (token.isNotEmpty) {
           await AnimeLibrarySync.githubRequest('GET', token, null);
           await secureStorage.write(key: tokenKey, value: token);
         }
-        notice('المزامنة جاهزة؛ شغّل sync-anime-library.js على صفحة الأنمي');
+        notice('Sync is ready; run sync-anime-library.js on the anime page');
       }
     } finally {
       controller.clear();
@@ -240,7 +241,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
       title: const Text('Script Browser'),
       actions: [
         IconButton(
-          tooltip: 'بث إلى التلفزيون',
+          tooltip: 'Cast to TV',
           onPressed: () async {
             await showDialog<void>(
               context: context,
@@ -251,7 +252,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
           icon: const Icon(Icons.cast),
         ),
         IconButton(
-          tooltip: 'حماية الإعلانات',
+          tooltip: 'Ad protection',
           onPressed: () => handle(editProtection),
           icon: Icon(
             session.blocker.activeFor(session.url)
@@ -260,7 +261,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
           ),
         ),
         PopupMenuButton<String>(
-          tooltip: 'الإعدادات والأدوات',
+          tooltip: 'Settings and tools',
           onSelected: (value) => handle(() async {
             switch (value) {
               case 'sync':
@@ -275,17 +276,17 @@ class _BrowserScreenState extends State<BrowserScreen> {
             PopupMenuItem(
               value: 'sync',
               enabled: !session.running,
-              child: const Text('مزامنة مكتبة الأنمي'),
+              child: const Text('Anime library sync'),
             ),
             PopupMenuItem(
               value: 'github',
               enabled: !session.running && !session.busy,
-              child: const Text('إعداد سكربتات GitHub'),
+              child: const Text('GitHub script settings'),
             ),
             PopupMenuItem(
               value: 'edit',
               enabled: !session.running,
-              child: const Text('تعديل السكربت'),
+              child: const Text('Edit script'),
             ),
           ],
         ),
@@ -323,24 +324,36 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 if (mounted) setState(() {});
               }),
             ),
-          if (MediaQuery.viewInsetsOf(context).bottom == 0)
-            SiteScriptsBar(
-              scripts: session.siteScripts,
-              onChoose:
-                  session.busy || session.running || session.siteScripts.loading
-                  ? null
-                  : () => handle(availableScripts),
-              onRefresh: () =>
-                  handle(() => session.siteScripts.discover(refresh: true)),
-            ),
-          if (MediaQuery.viewInsetsOf(context).bottom == 0)
-            ScriptPanel(
-              name: session.script.name,
-              result: session.result,
+          Offstage(
+            offstage: MediaQuery.viewInsetsOf(context).bottom > 0,
+            child: ScriptsDock(
               running: session.running,
-              onRun: session.canRun ? () => handle(session.run) : null,
-              onCopied: () => notice('تم نسخ النتيجة'),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SiteScriptsBar(
+                    scripts: session.siteScripts,
+                    onChoose:
+                        session.busy ||
+                            session.running ||
+                            session.siteScripts.loading
+                        ? null
+                        : () => handle(availableScripts),
+                    onRefresh: () => handle(
+                      () => session.siteScripts.discover(refresh: true),
+                    ),
+                  ),
+                  ScriptPanel(
+                    name: session.script.name,
+                    result: session.result,
+                    running: session.running,
+                    onRun: session.canRun ? () => handle(session.run) : null,
+                    onCopied: () => notice('Output copied'),
+                  ),
+                ],
+              ),
             ),
+          ),
         ],
       ),
     ),

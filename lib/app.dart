@@ -15,12 +15,13 @@ class ScriptBrowserApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
+    locale: const Locale('en'),
     theme: ThemeData(
       colorSchemeSeed: const Color(0xff146c60),
       useMaterial3: true,
     ),
     builder: (context, child) =>
-        Directionality(textDirection: TextDirection.rtl, child: child!),
+        Directionality(textDirection: TextDirection.ltr, child: child!),
     home: BrowserScreen(
       settingsStore: settingsStore,
       repositories: repositories,

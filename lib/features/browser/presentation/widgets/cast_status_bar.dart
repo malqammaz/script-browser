@@ -36,15 +36,15 @@ class _CastStatusBarState extends State<CastStatusBar> {
   Widget build(BuildContext context) {
     final relay = widget.cast.relay;
     final state = switch (relay?.receiverState) {
-      'playing' => 'قيد التشغيل',
-      'paused' => 'متوقف مؤقتاً',
-      'buffering' => 'جارٍ تحميل الفيديو…',
-      'seeking' => 'جارٍ الانتقال للوقت المطلوب…',
-      'recovering' => 'جارٍ استعادة التشغيل…',
-      'ended' => 'انتهى الفيديو',
-      'waiting' => 'بانتظار تشغيل التلفزيون',
-      'error' => 'تعذر تشغيل الفيديو',
-      _ => 'جلسة البث جاهزة',
+      'playing' => 'Playing',
+      'paused' => 'Paused',
+      'buffering' => 'Buffering…',
+      'seeking' => 'Seeking…',
+      'recovering' => 'Recovering playback…',
+      'ended' => 'Video ended',
+      'waiting' => 'Waiting for TV playback',
+      'error' => 'Unable to play video',
+      _ => 'Cast session ready',
     };
     final buffer = relay?.buffer;
     final details = buffer != null && buffer.usedBytes > 0
@@ -63,7 +63,7 @@ class _CastStatusBarState extends State<CastStatusBar> {
         subtitle: Text(details, maxLines: 2),
         onTap: widget.onOpen,
         trailing: IconButton(
-          tooltip: 'إيقاف البث',
+          tooltip: 'Stop casting',
           icon: const Icon(Icons.stop_circle_outlined),
           onPressed: widget.onStop,
         ),

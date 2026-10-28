@@ -50,7 +50,7 @@ class AnimeLibrarySync {
       if (response.statusCode == 409) throw const LibraryConflict();
       if (response.statusCode != 200 && response.statusCode != 201) {
         throw StateError(
-          'GitHub ${response.statusCode}: تحقق من التوكن وصلاحية Contents: Read and write.',
+          'GitHub ${response.statusCode}: check your token and Contents: Read and write permission.',
         );
       }
       return Map<String, dynamic>.from(jsonDecode(text) as Map);
@@ -64,14 +64,14 @@ class AnimeLibrarySync {
     String token,
   ) async {
     if (token.trim().isEmpty) {
-      throw StateError('اضغط زر مزامنة المكتبة وأدخل توكن GitHub مرة واحدة.');
+      throw StateError('Open library sync and enter your GitHub token once.');
     }
     for (var attempt = 0; attempt < 2; attempt++) {
       final file = await request('GET', token, null);
       if (file['encoding'] != 'base64' ||
           file['content'] is! String ||
           file['sha'] is! String) {
-        throw const FormatException('تعذر قراءة ملف المكتبة.');
+        throw const FormatException('Could not read the library file.');
       }
       final library = Map<String, dynamic>.from(
         jsonDecode(
@@ -121,7 +121,7 @@ class AnimeLibrarySync {
         rawTitle.trim().isEmpty ||
         rawEpisodes is! List ||
         library['anime'] is! List) {
-      throw const FormatException('بيانات الأنمي غير صالحة.');
+      throw const FormatException('Invalid anime data.');
     }
     final title = rawTitle.trim().replaceFirst(RegExp(r'^[اأإ]نمي\s+'), '');
     String titleKey(Object? value) => '$value'
@@ -135,7 +135,7 @@ class AnimeLibrarySync {
         (m) => '٠١٢٣٤٥٦٧٨٩'.indexOf(m[0]!).toString(),
       );
       if (!RegExp(r'^\d+(?:\.\d+)?$').hasMatch(text)) {
-        throw const FormatException('رقم حلقة غير صالح.');
+        throw const FormatException('Invalid episode number.');
       }
       return num.parse(text);
     }
@@ -160,7 +160,9 @@ class AnimeLibrarySync {
         )
         .toList();
     if (valid.isEmpty) {
-      throw const FormatException('لا توجد حلقات ناجحة لرفعها.');
+      throw const FormatException(
+        'No successfully extracted episodes to upload.',
+      );
     }
     show ??= {'title': title, 'episodes': <dynamic>[]};
     if (!shows.contains(show)) shows.add(show);
@@ -170,12 +172,12 @@ class AnimeLibrarySync {
       if (uri == null ||
           !['http', 'https'].contains(uri.scheme) ||
           uri.host.isEmpty) {
-        throw const FormatException('رابط صورة غير صالح.');
+        throw const FormatException('Invalid image URL.');
       }
       show['image'] = uri.toString();
     }
     if (show['episodes'] is! List) {
-      throw const FormatException('قائمة الحلقات المخزنة غير صالحة.');
+      throw const FormatException('Invalid stored episode list.');
     }
     final episodes = List<dynamic>.from(show['episodes'] as List);
     show['episodes'] = episodes;
@@ -201,17 +203,17 @@ class AnimeLibrarySync {
         old['title'] = 'الحلقة $n';
       }
       if (old['links'] is! List) {
-        throw const FormatException('الروابط المخزنة غير صالحة.');
+        throw const FormatException('Invalid stored links.');
       }
       final links = List<dynamic>.from(old['links'] as List);
       old['links'] = links;
       for (final raw in ep['links'] as List) {
-        if (raw is! Map) throw const FormatException('رابط غير صالح.');
+        if (raw is! Map) throw const FormatException('Invalid URL.');
         final url = Uri.tryParse('${raw['url']}');
         if (url == null ||
             !['http', 'https'].contains(url.scheme) ||
             url.host.isEmpty) {
-          throw const FormatException('رابط غير صالح.');
+          throw const FormatException('Invalid URL.');
         }
         final link = Map<String, dynamic>.from(raw);
         if ('${link['label'] ?? ''}'.trim().isEmpty) link['label'] = url.host;
@@ -250,5 +252,6 @@ class AnimeLibrarySync {
 class LibraryConflict implements Exception {
   const LibraryConflict();
   @override
-  String toString() => 'تغيرت المكتبة أثناء التحديث؛ أعد تشغيل السكربت.';
+  String toString() =>
+      'The library changed during the update; run the script again.';
 }

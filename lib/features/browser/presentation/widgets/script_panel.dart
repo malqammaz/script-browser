@@ -31,13 +31,13 @@ class ScriptPanel extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onRun,
                 icon: Icon(running ? Icons.hourglass_top : Icons.play_arrow),
-                label: Text(running ? 'جارٍ التنفيذ' : 'تشغيل'),
+                label: Text(running ? 'Running' : 'Run'),
               ),
             ],
           ),
           ExpansionTile(
             title: Text(
-              running ? 'جارٍ تنفيذ السكربت…' : 'نتيجة السكربت',
+              running ? 'Running script…' : 'Script output',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             subtitle: Text(
@@ -65,7 +65,7 @@ class ScriptPanel extends StatelessWidget {
                         onCopied();
                       },
                 icon: const Icon(Icons.copy),
-                label: const Text('نسخ النتيجة'),
+                label: const Text('Copy output'),
               ),
             ],
           ),

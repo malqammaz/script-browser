@@ -13,10 +13,10 @@ class ScriptPickerDialog extends StatelessWidget {
   Widget build(BuildContext context) => SimpleDialog(
     title: Text(
       domain.isEmpty
-          ? 'افتح موقعًا أولًا لعرض سكربتاته'
+          ? 'Open a website first to see its scripts'
           : files.isEmpty
-          ? 'لا توجد سكربتات لـ $domain'
-          : 'سكربتات $domain',
+          ? 'No scripts for $domain'
+          : 'Scripts for $domain',
     ),
     children: files
         .map(

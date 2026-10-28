@@ -57,30 +57,30 @@ class _ProtectionDialogState extends State<ProtectionDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('حماية الإعلانات'),
+    title: const Text('Ad protection'),
     content: SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'تم حظر ${widget.blockedCount} طلب إعلان أو نافذة في هذه الصفحة.',
+            'Blocked ${widget.blockedCount} ad requests or popups on this page.',
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('حظر الإعلانات والتتبع'),
+            title: const Text('Block ads and trackers'),
             value: enabled,
             onChanged: (value) => setState(() => enabled = value),
           ),
           if (widget.host.isNotEmpty)
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('السماح بالإعلانات لهذا الموقع'),
+              title: const Text('Allow ads on this site'),
               subtitle: Text(widget.host),
               value: allowSite,
               onChanged: (value) => setState(() => allowSite = value),
             ),
           const Text(
-            'يحظر نطاقات إعلانية معروفة والنوافذ الجديدة ويخفي علامات الإعلان الشائعة. قد لا يمنع جميع الإعلانات. إذا تعطلت وظيفة في الموقع، فعّل الاستثناء أعلاه.',
+            'Blocks known ad domains and popups and hides common ad elements. Some ads may remain. If a site feature breaks, allow ads for this site above.',
           ),
           const SizedBox(height: 12),
           TextField(
@@ -89,7 +89,7 @@ class _ProtectionDialogState extends State<ProtectionDialog> {
             maxLines: 6,
             textDirection: TextDirection.ltr,
             decoration: InputDecoration(
-              labelText: 'نطاقات إضافية — نطاق في كل سطر',
+              labelText: 'Additional domains — one per line',
               hintText: 'ads.example.com',
               errorText: error,
               border: const OutlineInputBorder(),
@@ -101,9 +101,9 @@ class _ProtectionDialogState extends State<ProtectionDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('إلغاء'),
+        child: const Text('Cancel'),
       ),
-      FilledButton(onPressed: save, child: const Text('حفظ وإعادة تحميل')),
+      FilledButton(onPressed: save, child: const Text('Save and reload')),
     ],
   );
 }

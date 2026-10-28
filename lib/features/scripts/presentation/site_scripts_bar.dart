@@ -12,11 +12,11 @@ class SiteScriptsBar extends StatelessWidget {
   final VoidCallback? onChoose;
   final VoidCallback onRefresh;
   String get label {
-    if (!scripts.configured) return 'اربط GitHub للتعرف على سكربتات المواقع';
-    if (scripts.domain.isEmpty) return 'افتح موقعًا لعرض سكربتاته';
-    if (scripts.loading) return 'جارٍ البحث عن سكربتات ${scripts.domain}…';
-    if (scripts.error != null) return 'تعذر جلب السكربتات — اضغط تحديث';
-    return '${scripts.domain} · ${scripts.files.length} سكربت متاح';
+    if (!scripts.configured) return 'Connect GitHub to find site scripts';
+    if (scripts.domain.isEmpty) return 'Open a website to see its scripts';
+    if (scripts.loading) return 'Finding scripts for ${scripts.domain}…';
+    if (scripts.error != null) return 'Could not load scripts — tap refresh';
+    return '${scripts.domain} · ${scripts.files.length} scripts available';
   }
 
   @override
@@ -30,7 +30,7 @@ class SiteScriptsBar extends StatelessWidget {
         ),
       ),
       IconButton(
-        tooltip: 'تحديث سكربتات الموقع',
+        tooltip: 'Refresh site scripts',
         onPressed:
             scripts.loading || !scripts.configured || scripts.domain.isEmpty
             ? null

@@ -22,8 +22,8 @@ class ScriptDocument {
   final String? domain;
 
   static const example = ScriptDocument(
-    name: 'سكربت تجريبي',
+    name: 'Example script',
     source:
-        "const button = document.querySelector('button');\nif (!button) throw new Error('لم يتم العثور على زر');\nbutton.click();\nreturn 'تم الضغط على الزر';",
+        "const button = document.querySelector('button');\nif (!button) throw new Error('No button found');\nbutton.click();\nreturn 'Button clicked';",
   );
 }

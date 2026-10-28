@@ -12,7 +12,7 @@ String scriptDomain(String url) {
 
 GitHubConfig scriptsForDomain(GitHubConfig root, String domain) {
   if (domain.isEmpty || domain.contains('/') || domain.contains('\\')) {
-    throw const FormatException('افتح موقعًا أولًا لعرض سكربتاته');
+    throw const FormatException('Open a website first to see its scripts');
   }
   final folder = root.folder.trim().replaceAll(RegExp(r'^/+|/+$'), '');
   return GitHubConfig(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:script_browser/features/browser/presentation/widgets/scripts_dock.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:script_browser/features/browser/presentation/cast_dialog.dart';
 import 'package:script_browser/features/browser/presentation/widgets/script_panel.dart';
@@ -7,6 +8,41 @@ import 'package:script_browser/features/browser/infrastructure/browser_web.dart'
 import 'package:script_browser/features/protection/domain/ad_blocker.dart';
 
 void main() {
+  testWidgets(
+    'Corner arrow minimizes the entire scripts area without losing output',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ScriptsDock(
+              running: false,
+              child: ScriptPanel(
+                name: 'test.js',
+                result: 'kept output',
+                running: false,
+                onRun: () {},
+                onCopied: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Script output'));
+      await tester.pumpAndSettle();
+      expect(find.text('Copy output'), findsOneWidget);
+      await tester.tap(find.byTooltip('Minimize scripts'));
+      await tester.pumpAndSettle();
+      expect(find.text('Run'), findsNothing);
+      expect(find.text('Copy output'), findsNothing);
+      expect(find.byIcon(Icons.keyboard_arrow_up), findsOneWidget);
+      await tester.tap(find.byTooltip('Expand scripts'));
+      await tester.pumpAndSettle();
+      expect(find.text('Run'), findsOneWidget);
+      expect(find.text('Copy output'), findsOneWidget);
+      expect(find.text('kept output'), findsWidgets);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('Script output stays collapsed until requested', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -21,10 +57,10 @@ void main() {
         ),
       ),
     );
-    expect(find.text('نسخ النتيجة'), findsNothing);
-    await tester.tap(find.text('نتيجة السكربت'));
+    expect(find.text('Copy output'), findsNothing);
+    await tester.tap(find.text('Script output'));
     await tester.pumpAndSettle();
-    expect(find.text('نسخ النتيجة'), findsOneWidget);
+    expect(find.text('Copy output'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
   testWidgets('Casting steps fit a small phone and preserve video selection', (
@@ -47,7 +83,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         builder: (_, child) =>
-            Directionality(textDirection: TextDirection.rtl, child: child!),
+            Directionality(textDirection: TextDirection.ltr, child: child!),
         home: Scaffold(
           body: Builder(
             builder: (context) => TextButton(
@@ -70,13 +106,13 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
     expect(find.text('LG test'), findsOneWidget);
-    await tester.tap(find.text('التالي'));
+    await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
-    expect(find.text('HLS · بث متكيف'), findsOneWidget);
+    expect(find.text('HLS · Adaptive stream'), findsOneWidget);
     expect(find.text('https://example.com/video.m3u8'), findsNothing);
-    await tester.tap(find.text('التالي'));
+    await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
-    expect(find.text('بدء البث'), findsOneWidget);
+    expect(find.text('Start casting'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

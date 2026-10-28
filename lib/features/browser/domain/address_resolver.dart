@@ -3,14 +3,16 @@ class AddressResolver {
   const AddressResolver();
   Uri resolve(String value) {
     final text = value.trim();
-    if (text.isEmpty) throw const FormatException('اكتب رابطاً أو عبارة بحث');
+    if (text.isEmpty) {
+      throw const FormatException('Enter a website or search term');
+    }
     final explicit = RegExp(r'^[a-zA-Z][a-zA-Z0-9+.-]*://').hasMatch(text);
     final candidate = Uri.tryParse(explicit ? text : 'https://$text');
     if (explicit) {
       if (candidate == null ||
           !['https', 'http'].contains(candidate.scheme) ||
           candidate.host.isEmpty) {
-        throw const FormatException('هذا النوع من الروابط غير مدعوم');
+        throw const FormatException('This URL scheme is not supported');
       }
       return candidate;
     }

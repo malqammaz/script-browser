@@ -33,7 +33,7 @@ class ScriptRunner {
             const value = await (async () => {
               $source
             })();
-            complete({ok:true, value: value === undefined ? 'تم التنفيذ بدون قيمة إرجاع' : value});
+            complete({ok:true, value: value === undefined ? 'Completed without a return value' : value});
           } catch(e) { complete({ok:false,error:String(e)}); }
         })();
       })();''');
@@ -42,7 +42,7 @@ class ScriptRunner {
         await Future<void>.delayed(pollInterval);
         if (isCancelled()) return '';
         if (navigationChanged()) {
-          return 'تغيّرت الصفحة أثناء التنفيذ؛ قد يكون السكربت قد نفّذ التنقّل.';
+          return 'The page changed while running; the script may have navigated.';
         }
         final raw = await runtime.runJavaScriptReturningResult(
           'window[$key] || ""',
@@ -51,9 +51,9 @@ class ScriptRunner {
         if (response != null) return response;
       }
       if (isCancelled()) return '';
-      return 'انتهى انتظار النتيجة بعد ${timeout.inSeconds} ثانية. قد يستمر السكربت؛ أعد تحميل الصفحة لإيقافه.';
+      return 'No result after ${timeout.inSeconds} seconds. The script may still be running; reload the page to stop it.';
     } catch (error) {
-      return 'تعذر التنفيذ: $error';
+      return 'Could not run script: $error';
     } finally {
       try {
         await runtime.runJavaScript('delete window[$key]');
@@ -70,6 +70,6 @@ class ScriptRunner {
     final data = jsonDecode(value) as Map<String, dynamic>;
     return data['ok'] == true
         ? const JsonEncoder.withIndent('  ').convert(data['value'])
-        : 'خطأ: ${data['error']}';
+        : 'Error: ${data['error']}';
   }
 }

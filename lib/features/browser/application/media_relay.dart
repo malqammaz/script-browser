@@ -71,7 +71,7 @@ class MediaRelay {
 
   Uri register(Uri uri) {
     if (!['http', 'https'].contains(uri.scheme) || uri.host.isEmpty) {
-      throw const FormatException('رابط فيديو غير صالح.');
+      throw const FormatException('Invalid video URL.');
     }
     final id = _ids.putIfAbsent(
       uri,

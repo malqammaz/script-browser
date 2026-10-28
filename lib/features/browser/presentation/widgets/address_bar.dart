@@ -18,7 +18,7 @@ class AddressBar extends StatelessWidget {
     child: Row(
       children: [
         IconButton(
-          tooltip: 'رجوع',
+          tooltip: 'Back',
           onPressed: onBack,
           icon: const Icon(Icons.arrow_back),
         ),
@@ -31,19 +31,19 @@ class AddressBar extends StatelessWidget {
             keyboardType: TextInputType.url,
             onSubmitted: (_) => onOpen(),
             decoration: const InputDecoration(
-              hintText: 'ابحث في Google أو أدخل رابطاً',
+              hintText: 'Search Google or enter a URL',
               border: OutlineInputBorder(),
               isDense: true,
             ),
           ),
         ),
         IconButton(
-          tooltip: 'فتح',
+          tooltip: 'Go',
           onPressed: onOpen,
           icon: const Icon(Icons.arrow_forward),
         ),
         IconButton(
-          tooltip: 'إعادة تحميل',
+          tooltip: 'Reload',
           onPressed: onReload,
           icon: const Icon(Icons.refresh),
         ),

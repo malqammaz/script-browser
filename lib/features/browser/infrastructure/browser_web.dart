@@ -125,13 +125,13 @@ class BrowserWeb implements BrowserEngine {
   Future<void> goBack() async => controller?.goBack();
   @override
   Future<void> runJavaScript(String source) async {
-    if (controller == null) throw StateError('المتصفح غير جاهز');
+    if (controller == null) throw StateError('The browser is not ready');
     await controller!.evaluateJavascript(source: source);
   }
 
   @override
   Future<Object> runJavaScriptReturningResult(String source) async {
-    if (controller == null) throw StateError('المتصفح غير جاهز');
+    if (controller == null) throw StateError('The browser is not ready');
     return await controller!.evaluateJavascript(source: source) ?? '';
   }
 

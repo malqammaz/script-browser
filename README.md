@@ -170,3 +170,13 @@ A small script now observes video elements in every frame. It reports an actual 
 Run `node test/media_probe_test.cjs` for extensionless video reporting, per-frame referrer, deduplication, source changes, and blob rejection. Dart media-source tests cover explicit video evidence and URL filtering.
 
 Live validation on the connected phone: after installing 1.6.2, selected Dood FHD and pressed Play on the supplied Yalanime episode. The native media catalog contained one detected source from cloudatacdn.com. Dood TV playback was not validated by this detection test. All 53 Flutter tests and the JavaScript frame-probe tests passed; static analysis reported no issues.
+
+## English UI and scripts dock (1.6.3)
+
+The app interface, launcher label, dialogs, tooltips, status messages, and application errors now use English with left-to-right layout. Website content, user-authored scripts, existing saved script names, scraped anime titles, and Arabic data-normalization rules remain as supplied.
+
+The Scripts workspace has a down arrow in its upper-right corner. Tap it to minimize the entire site-script selector, Run controls, and output area into a compact Scripts header. Tap the up arrow to restore it. Minimizing does not stop a running script or clear its output, and the header shows when a script is running. The nested output expander keeps its state when the dock is minimized.
+
+A widget regression test verifies minimize/restore controls and preserved expanded output.
+
+Validation: 54 Flutter tests passed, both JavaScript detector/player test suites passed, and flutter analyze reported no issues.
