@@ -154,4 +154,3 @@ Live HLS, byte-range playlists, and direct MP4 continue through the normal relay
 Validation: flutter test test/ram_media_buffer_test.dart covers memory limits, cached Range requests, seeking, and rate-limit handling with a local test server.
 
 Validation for this revision: 52 automated tests passed; flutter analyze reported no issues; Android debug APK built successfully. Live TV playback was not repeated for this UI revision.
-
