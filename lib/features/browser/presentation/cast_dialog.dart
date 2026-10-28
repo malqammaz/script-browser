@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../application/tv_cast.dart';
+import '../application/media_source.dart';
 import '../infrastructure/browser_web.dart';
 
 class CastDialog extends StatefulWidget {
@@ -101,7 +102,7 @@ class _CastDialogState extends State<CastDialog> {
             const Divider(),
             if (widget.web.mediaRequests.isEmpty)
               const Text(
-                'لم يُكتشف فيديو بعد. ارجع للصفحة وشغّله أو الصق رابط MP4 / M3U8 مباشر.',
+                'لم يُكتشف فيديو بعد. شغّله في الصفحة، أو الصق رابط MP4 / M3U8 أو رابط معاينة Drive عام.',
               ),
             for (final url in widget.web.mediaRequests.keys)
               RadioListTile<String>(
@@ -136,7 +137,7 @@ class _CastDialogState extends State<CastDialog> {
               onChanged: busy
                   ? null
                   : (value) => setState(() => lgBrowser = value),
-              title: const Text('استخدام متصفح LG لبث HLS'),
+              title: const Text('استخدام متصفح LG للفيديو'),
             ),
             if (widget.cast.connected != null)
               Wrap(
@@ -209,7 +210,9 @@ class _CastDialogState extends State<CastDialog> {
                   useBrowserReceiver:
                       lgBrowser &&
                       selected!.name.toLowerCase().contains('lg') &&
-                      uri.path.toLowerCase().endsWith('.m3u8'),
+                      (publicDrivePreview(uri) != null ||
+                          uri.path.toLowerCase().endsWith('.m3u8') ||
+                          isDrivePreviewMedia(uri)),
                   headers:
                       widget.web.mediaRequests[url] ??
                       {'Referer': widget.web.pageUrl},

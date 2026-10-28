@@ -5,6 +5,38 @@ import 'package:script_browser/features/browser/application/tv_cast.dart';
 
 void main() {
   test(
+    'Drive receiver embeds preview without fetching any original bytes or cookies',
+    () async {
+      final relay = MediaRelay(
+        cookies: (_) async =>
+            throw StateError('Must not read cookies for preview embedding'),
+      );
+      final client = HttpClient();
+      try {
+        final uri = await relay.start(
+          Uri.parse('https://drive.google.com/file/d/public-test/view'),
+          InternetAddress.loopbackIPv4,
+          '127.0.0.1',
+        );
+        final response = await (await client.getUrl(
+          uri.replace(path: '/tv'),
+        )).close();
+        final html = await utf8.decoder.bind(response).join();
+        expect(html, contains('<iframe'));
+        expect(
+          html,
+          contains('https://drive.google.com/file/d/public-test/preview'),
+        );
+        expect(html, isNot(contains('export=download')));
+        expect(html, isNot(contains('confirm=')));
+        expect(relay.lastUpstreamStatus, isNull);
+      } finally {
+        client.close(force: true);
+        await relay.close();
+      }
+    },
+  );
+  test(
     'Relay forwards range requests and scoped cookies without storing video',
     () async {
       final upstream = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import '../../protection/domain/ad_blocker.dart';
 import '../domain/browser_engine.dart';
+import '../application/media_source.dart';
 import 'home_page.dart';
 
 /// Keeps the script editor independent of the Android WebView implementation.
@@ -16,18 +17,22 @@ class BrowserWeb implements BrowserEngine {
     required this.onProgress,
     required this.onError,
     required this.onBlocked,
+    this.onResource,
   });
   final AdBlocker blocker;
   final void Function(String) onStarted, onFinished, onError;
   final void Function(int) onProgress;
   final VoidCallback onBlocked;
+  final void Function(Uri)? onResource;
   InAppWebViewController? controller;
   final mediaRequests = <String, Map<String, String>>{};
   void rememberMedia(String url, [Map<String, String> headers = const {}]) {
-    final uri = Uri.tryParse(url);
-    if (uri == null || !['http', 'https'].contains(uri.scheme)) return;
-    if (!RegExp(r'\.(mp4|m3u8)(?:$|[?])', caseSensitive: false).hasMatch(url))
+    final uri = castableMedia(url);
+    if (uri == null) return;
+    if (publicDrivePreview(Uri.parse(pageUrl)) != null &&
+        isDrivePreviewMedia(uri))
       return;
+    url = uri.toString();
     if (blocker.blocks(url, pageUrl)) return;
     if (mediaRequests.length < 60 &&
         (headers.isNotEmpty || !mediaRequests.containsKey(url)))
@@ -71,6 +76,8 @@ class BrowserWeb implements BrowserEngine {
           }
       }
     }
+    final preview = publicDrivePreview(Uri.parse(pageUrl));
+    if (preview != null) mediaRequests.putIfAbsent('$preview', () => {});
   }
 
   Future<String> mediaCookies(Uri url) async {
@@ -172,6 +179,7 @@ class BrowserWeb implements BrowserEngine {
       return NavigationActionPolicy.ALLOW;
     },
     shouldInterceptRequest: (c, request) async {
+      onResource?.call(Uri.parse(request.url.toString()));
       rememberMedia(request.url.toString(), request.headers ?? const {});
       if (!blocker.blocks(request.url.toString(), pageUrl)) return null;
       onBlocked();

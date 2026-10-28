@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:xml/xml.dart';
+import 'media_source.dart';
 
 class CastTv {
   const CastTv(this.name, this.control);
@@ -216,6 +217,8 @@ class TvCast {
 /// Streams bytes in memory; URLs are registered explicitly, never an open proxy.
 class MediaRelay {
   Uri? _media;
+  Uri? _original;
+  bool receiverPageOpened = false;
   Uri get browserUrl => _base.resolve('/tv');
   String receiverState = 'waiting';
   double receiverTime = 0;
@@ -247,6 +250,7 @@ class MediaRelay {
     _base = Uri(scheme: 'http', host: address.address, port: _server!.port);
     _server!.listen((request) => unawaited(_serve(request)));
     _media = register(media);
+    _original = media;
     return _media!;
   }
 
@@ -282,8 +286,18 @@ class MediaRelay {
       if (request.connectionInfo?.remoteAddress.address == _peer &&
           request.method == 'GET' &&
           request.uri.path == '/tv') {
+        receiverPageOpened = true;
         response.headers.contentType = ContentType.html;
         response.headers.set('Cache-Control', 'no-store');
+        final preview = _original == null
+            ? null
+            : publicDrivePreview(_original!);
+        if (preview != null) {
+          response.write(
+            '''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Drive preview on TV</title><style>html,body{margin:0;width:100%;height:100%;background:black}iframe{border:0;width:100%;height:100%}</style></head><body><iframe src="${TvCast.xmlEscape('$preview')}" allow="autoplay; fullscreen" allowfullscreen title="Google Drive public preview"></iframe></body></html>''',
+          );
+          return;
+        }
         response.write(
           '''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Script Browser TV</title><style>html,body{margin:0;background:#080b0d;color:white;font:22px sans-serif;height:100%}video{width:100%;height:90vh;background:black}p{text-align:center;margin:8px}</style></head><body><video id="video" controls autoplay playsinline src="${TvCast.xmlEscape('$_media')}"></video><p id="status">Select Play to start the video.</p><script>
 const v=document.getElementById('video'),s=document.getElementById('status');let last=0;
