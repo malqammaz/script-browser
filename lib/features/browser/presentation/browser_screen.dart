@@ -14,6 +14,7 @@ import '../../scripts/presentation/site_scripts_bar.dart';
 import '../application/browser_session.dart';
 import '../infrastructure/browser_web.dart';
 import 'widgets/address_bar.dart';
+import 'widgets/cast_status_bar.dart';
 import 'widgets/script_panel.dart';
 
 class BrowserScreen extends StatefulWidget {
@@ -236,22 +237,18 @@ class _BrowserScreenState extends State<BrowserScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('متصفح السكربتات'),
+      title: const Text('Script Browser'),
       actions: [
         IconButton(
           tooltip: 'بث إلى التلفزيون',
-          onPressed: () => showDialog<void>(
-            context: context,
-            builder: (_) => CastDialog(web: web, cast: tvCast),
-          ),
+          onPressed: () async {
+            await showDialog<void>(
+              context: context,
+              builder: (_) => CastDialog(web: web, cast: tvCast),
+            );
+            if (mounted) setState(() {});
+          },
           icon: const Icon(Icons.cast),
-        ),
-        IconButton(
-          tooltip: 'مزامنة مكتبة الأنمي',
-          onPressed: session.running
-              ? null
-              : () => handle(configureLibrarySync),
-          icon: const Icon(Icons.cloud_upload_outlined),
         ),
         IconButton(
           tooltip: 'حماية الإعلانات',
@@ -262,17 +259,35 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 : Icons.shield_outlined,
           ),
         ),
-        IconButton(
-          tooltip: 'GitHub',
-          onPressed: session.busy || session.running
-              ? null
-              : () => handle(chooseScript),
-          icon: const Icon(Icons.cloud_download_outlined),
-        ),
-        IconButton(
-          tooltip: 'تعديل السكربت',
-          onPressed: session.running ? null : () => handle(editScript),
-          icon: const Icon(Icons.code),
+        PopupMenuButton<String>(
+          tooltip: 'الإعدادات والأدوات',
+          onSelected: (value) => handle(() async {
+            switch (value) {
+              case 'sync':
+                await configureLibrarySync();
+              case 'github':
+                await chooseScript();
+              case 'edit':
+                await editScript();
+            }
+          }),
+          itemBuilder: (_) => [
+            PopupMenuItem(
+              value: 'sync',
+              enabled: !session.running,
+              child: const Text('مزامنة مكتبة الأنمي'),
+            ),
+            PopupMenuItem(
+              value: 'github',
+              enabled: !session.running && !session.busy,
+              child: const Text('إعداد سكربتات GitHub'),
+            ),
+            PopupMenuItem(
+              value: 'edit',
+              enabled: !session.running,
+              child: const Text('تعديل السكربت'),
+            ),
+          ],
         ),
       ],
     ),
@@ -281,31 +296,51 @@ class _BrowserScreenState extends State<BrowserScreen> {
         children: [
           AddressBar(
             controller: address,
-            onOpen: () => handle(() => session.open(address.text)),
+            onOpen: () {
+              FocusScope.of(context).unfocus();
+              handle(() => session.open(address.text));
+            },
             onReload: () => handle(session.reload),
+            onBack: () => handle(session.back),
           ),
           if (session.progress < 100 || session.busy)
             LinearProgressIndicator(
               value: session.busy ? null : session.progress / 100,
             ),
           Expanded(child: web.view()),
-          SiteScriptsBar(
-            scripts: session.siteScripts,
-            onChoose:
-                session.busy || session.running || session.siteScripts.loading
-                ? null
-                : () => handle(availableScripts),
-            onRefresh: () =>
-                handle(() => session.siteScripts.discover(refresh: true)),
-          ),
-          ScriptPanel(
-            name: session.script.name,
-            result: session.result,
-            running: session.running,
-            onRun: session.canRun ? () => handle(session.run) : null,
-            onBack: () => handle(session.back),
-            onCopied: () => notice('تم نسخ النتيجة'),
-          ),
+          if (tvCast.connected != null)
+            CastStatusBar(
+              cast: tvCast,
+              onOpen: () async {
+                await showDialog<void>(
+                  context: context,
+                  builder: (_) => CastDialog(web: web, cast: tvCast),
+                );
+                if (mounted) setState(() {});
+              },
+              onStop: () => handle(() async {
+                await tvCast.stop();
+                if (mounted) setState(() {});
+              }),
+            ),
+          if (MediaQuery.viewInsetsOf(context).bottom == 0)
+            SiteScriptsBar(
+              scripts: session.siteScripts,
+              onChoose:
+                  session.busy || session.running || session.siteScripts.loading
+                  ? null
+                  : () => handle(availableScripts),
+              onRefresh: () =>
+                  handle(() => session.siteScripts.discover(refresh: true)),
+            ),
+          if (MediaQuery.viewInsetsOf(context).bottom == 0)
+            ScriptPanel(
+              name: session.script.name,
+              result: session.result,
+              running: session.running,
+              onRun: session.canRun ? () => handle(session.run) : null,
+              onCopied: () => notice('تم نسخ النتيجة'),
+            ),
         ],
       ),
     ),

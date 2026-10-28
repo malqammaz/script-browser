@@ -6,7 +6,6 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import '../../protection/domain/ad_blocker.dart';
 import '../domain/browser_engine.dart';
 import '../application/media_source.dart';
-import 'home_page.dart';
 
 /// Keeps the script editor independent of the Android WebView implementation.
 class BrowserWeb implements BrowserEngine {
@@ -25,18 +24,21 @@ class BrowserWeb implements BrowserEngine {
   final VoidCallback onBlocked;
   final void Function(Uri)? onResource;
   InAppWebViewController? controller;
+  Uri? _pendingNavigation;
   final mediaRequests = <String, Map<String, String>>{};
   void rememberMedia(String url, [Map<String, String> headers = const {}]) {
     final uri = castableMedia(url);
     if (uri == null) return;
     if (publicDrivePreview(Uri.parse(pageUrl)) != null &&
-        isDrivePreviewMedia(uri))
+        isDrivePreviewMedia(uri)) {
       return;
+    }
     url = uri.toString();
     if (blocker.blocks(url, pageUrl)) return;
     if (mediaRequests.length < 60 &&
-        (headers.isNotEmpty || !mediaRequests.containsKey(url)))
+        (headers.isNotEmpty || !mediaRequests.containsKey(url))) {
       mediaRequests[url] = Map.of(headers);
+    }
   }
 
   Future<void> detectMedia() async {
@@ -61,19 +63,22 @@ class BrowserWeb implements BrowserEngine {
     );
     if (raw is String) {
       final list = jsonDecode(raw);
-      if (list is List)
+      if (list is List) {
         for (final url in list) {
-          if (url is String)
+          if (url is String) {
             rememberMedia(url, mediaRequests[url] ?? {'Referer': pageUrl});
+          }
         }
+      }
       if (mediaRequests.isNotEmpty) {
         final agent = await controller?.evaluateJavascript(
           source: 'navigator.userAgent',
         );
-        if (agent is String)
+        if (agent is String) {
           for (final headers in mediaRequests.values) {
             headers.putIfAbsent('User-Agent', () => agent);
           }
+        }
       }
     }
     final preview = publicDrivePreview(Uri.parse(pageUrl));
@@ -101,6 +106,7 @@ class BrowserWeb implements BrowserEngine {
 
   @override
   Future<void> loadRequest(Uri uri) async {
+    _pendingNavigation = uri;
     pageUrl = uri.toString();
     await updateProtection();
     await controller?.loadUrl(urlRequest: URLRequest(url: WebUri.uri(uri)));
@@ -145,10 +151,12 @@ class BrowserWeb implements BrowserEngine {
     initialUserScripts: UnmodifiableListView(
       blocker.activeFor(pageUrl) ? [styleScript] : <UserScript>[],
     ),
-    initialData: InAppWebViewInitialData(data: homePageHtml),
     onWebViewCreated: (value) async {
       controller = value;
       await updateProtection();
+      if (_pendingNavigation case final uri?) {
+        await value.loadUrl(urlRequest: URLRequest(url: WebUri.uri(uri)));
+      }
     },
     onLoadStart: (c, url) async {
       mediaRequests.clear();

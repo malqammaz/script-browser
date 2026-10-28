@@ -49,8 +49,9 @@ void main() {
         'https://accounts.google.com/',
         'https://r1.googlevideo.com/videoplayback?mime=audio%2Fmp4&itag=140',
         'https://fakegooglevideo.com/videoplayback?mime=video%2Fmp4',
-      ])
+      ]) {
         expect(castableMedia(url), isNull);
+      }
     },
   );
 }

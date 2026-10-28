@@ -2,8 +2,9 @@
 Uri? castableMedia(String value) {
   final uri = Uri.tryParse(value);
   if (uri == null || !['http', 'https'].contains(uri.scheme)) return null;
-  if (RegExp(r'\.(mp4|m3u8)$', caseSensitive: false).hasMatch(uri.path))
+  if (RegExp(r'\.(mp4|m3u8)$', caseSensitive: false).hasMatch(uri.path)) {
     return uri;
+  }
   final host = uri.host.toLowerCase();
   final google =
       host == 'drive.google.com' ||
@@ -14,8 +15,9 @@ Uri? castableMedia(String value) {
   final query = Map<String, String>.from(uri.queryParameters);
   final mime = query['mime'] ?? '';
   if (mime.startsWith('audio/') ||
-      ['139', '140', '141', '249', '250', '251'].contains(query['itag']))
+      ['139', '140', '141', '249', '250', '251'].contains(query['itag'])) {
     return null;
+  }
   final signed = (query['sparams'] ?? '').split(',');
   if (!signed.contains('range')) query.remove('range');
   return uri.replace(queryParameters: query);

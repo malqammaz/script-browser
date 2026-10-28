@@ -8,14 +8,12 @@ class ScriptPanel extends StatelessWidget {
     required this.result,
     required this.running,
     required this.onRun,
-    required this.onBack,
     required this.onCopied,
   });
   final String name;
   final String result;
   final bool running;
   final VoidCallback? onRun;
-  final VoidCallback onBack;
   final VoidCallback onCopied;
 
   @override
@@ -27,40 +25,49 @@ class ScriptPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              IconButton(
-                tooltip: 'رجوع',
-                onPressed: onBack,
-                icon: const Icon(Icons.arrow_forward_ios, size: 18),
-              ),
               Expanded(
                 child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
               FilledButton.icon(
                 onPressed: onRun,
                 icon: Icon(running ? Icons.hourglass_top : Icons.play_arrow),
-                label: const Text('تشغيل'),
+                label: Text(running ? 'جارٍ التنفيذ' : 'تشغيل'),
               ),
             ],
           ),
-          SizedBox(
-            height: 90,
-            child: SingleChildScrollView(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: SelectableText(result),
+          ExpansionTile(
+            title: Text(
+              running ? 'جارٍ تنفيذ السكربت…' : 'نتيجة السكربت',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            subtitle: Text(
+              result.replaceAll('\n', ' '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            children: [
+              if (running) const LinearProgressIndicator(),
+              SizedBox(
+                height: 160,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(12),
+                  child: SelectableText(
+                    result,
+                    textDirection: TextDirection.ltr,
+                  ),
+                ),
               ),
-            ),
-          ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: result));
-                onCopied();
-              },
-              icon: const Icon(Icons.copy, size: 16),
-              label: const Text('نسخ النتيجة'),
-            ),
+              TextButton.icon(
+                onPressed: result.isEmpty
+                    ? null
+                    : () async {
+                        await Clipboard.setData(ClipboardData(text: result));
+                        onCopied();
+                      },
+                icon: const Icon(Icons.copy),
+                label: const Text('نسخ النتيجة'),
+              ),
+            ],
           ),
         ],
       ),

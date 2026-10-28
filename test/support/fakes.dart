@@ -6,6 +6,12 @@ import 'package:script_browser/features/scripts/domain/script_repository.dart';
 class MemorySettingsStore implements SettingsStore {
   MemorySettingsStore([this.settings = const AppSettings()]);
   AppSettings settings;
+  String? savedLastUrl;
+  @override
+  Future<void> saveLastUrl(String url) async {
+    savedLastUrl = url;
+  }
+
   GitHubConfig? savedGitHub;
   ScriptDocument? savedScript;
   bool? savedProtection;

@@ -5,8 +5,9 @@ import 'package:script_browser/features/browser/application/ram_media_buffer.dar
 import 'package:script_browser/features/browser/application/tv_cast.dart';
 
 Future<void> until(bool Function() condition) async {
-  for (var i = 0; i < 200 && !condition(); i++)
+  for (var i = 0; i < 200 && !condition(); i++) {
     await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
   expect(
     condition(),
     true,

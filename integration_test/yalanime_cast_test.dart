@@ -105,7 +105,7 @@ void main() {
       try {
         await cast.cast(
           tv,
-          Uri.parse(selected!),
+          Uri.parse(selected),
           cookies: web.mediaCookies,
           useBrowserReceiver: true,
           headers: web.mediaRequests[selected] ?? const {},
@@ -123,8 +123,9 @@ void main() {
             cast.relay!.receiverTime < 3 &&
             cast.relay!.receiverState != 'error';
         i++
-      )
+      ) {
         await tester.pump(const Duration(seconds: 1));
+      }
       debugPrint(
         'Receiver state=${cast.relay!.receiverState}, time=${cast.relay!.receiverTime}, upstream=${cast.relay!.lastUpstreamStatus}, type=${cast.relay!.lastContentType}',
       );

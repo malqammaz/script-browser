@@ -10,6 +10,7 @@ import '../../scripts/domain/site_scripts.dart';
 import '../../scripts/domain/script.dart';
 import '../../scripts/domain/script_repository.dart';
 import '../domain/browser_engine.dart';
+import '../domain/address_resolver.dart';
 
 /// Owns browser state and use cases. Widgets own only their UI controllers.
 class BrowserSession extends ChangeNotifier {
@@ -61,6 +62,14 @@ class BrowserSession extends ChangeNotifier {
     blocker.customDomains.addAll(settings.customDomains);
     _changed();
     await engine.updateProtection();
+    final saved = Uri.tryParse(settings.lastUrl);
+    final destination =
+        saved != null &&
+            ['https', 'http'].contains(saved.scheme) &&
+            saved.host.isNotEmpty
+        ? saved
+        : Uri.parse('https://www.google.com/');
+    await engine.loadRequest(destination);
     await siteScripts.discover();
   }
 
@@ -76,6 +85,12 @@ class BrowserSession extends ChangeNotifier {
   void pageFinished(String value) {
     if (_disposed) return;
     url = value;
+    final uri = Uri.tryParse(value);
+    if (uri != null &&
+        ['http', 'https'].contains(uri.scheme) &&
+        uri.host.isNotEmpty) {
+      unawaited(settingsStore.saveLastUrl(value).catchError((Object _) {}));
+    }
     siteScripts.setPage(value);
     progress = 100;
     _changed();
@@ -96,15 +111,8 @@ class BrowserSession extends ChangeNotifier {
     _changed();
   }
 
-  static Uri parseAddress(String value) {
-    var text = value.trim();
-    if (!text.contains('://')) text = 'https://$text';
-    final uri = Uri.parse(text);
-    if (!['https', 'http'].contains(uri.scheme) || uri.host.isEmpty) {
-      throw const FormatException('أدخل رابط موقع صحيح');
-    }
-    return uri;
-  }
+  static Uri parseAddress(String value) =>
+      const AddressResolver().resolve(value);
 
   Future<void> open(String value) => engine.loadRequest(parseAddress(value));
   Future<void> reload() => engine.reload();

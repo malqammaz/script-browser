@@ -1,3 +1,36 @@
+# Script Browser
+
+![Browser icon](assets/branding/browser-icon.png)
+
+## What's new in 1.6.0
+
+- More room for websites: script output starts collapsed. Expand “نتيجة السكربت” to inspect/copy the result. Script controls hide while typing in the address bar.
+- Simplified toolbar: Cast and ad protection stay visible. The overflow menu contains GitHub scripts, script editing, and library sync settings.
+- Address bar accepts a website or Google search. `example.com` opens with HTTPS; `cats` or Arabic phrases search Google. Local addresses such as `http://192.168.1.10:8878/tv` work too. Enter/Go dismisses the keyboard. Back and Reload are beside the address field.
+- The last completed HTTP/HTTPS page is stored locally, including its path/query/fragment, and restored when the app opens. The first launch (or invalid saved data) opens Google. Blank pages never replace the saved site. This is local browser history, not GitHub sync; URLs can contain sensitive query parameters.
+- The built-in demonstration/test page has been removed from the app. Automated tests remain in the repository.
+- Casting setup has three steps: choose TV, choose video, then connect. Video cards show host and stream type; long URLs are available under Details. Manual URLs and LG options are grouped under advanced options. Rescanning preserves the selected TV when it is still available.
+- LG setup shows the receiver address with Copy and numbered instructions. Closing the dialog keeps casting active. A persistent session bar reopens controls or stops casting; the browser receiver reports playback state and cached media usage. DLNA state is not polled and is shown as a ready session.
+- Loading, empty states, and connection failures have clearer messages and retry actions. Discovered quality is not guessed when the source does not supply it.
+- New teal globe/code launcher icon, including Android adaptive and legacy density assets. Editable SVG and PNG preview live in `assets/branding/`.
+
+### Architecture and SOLID review
+
+- `BrowserSession` coordinates browsing and scripts using the `BrowserEngine` and `SettingsStore` interfaces; platform WebView and SharedPreferences adapters implement those contracts.
+- `AddressResolver` owns URL/search interpretation independently of Flutter UI or persistence.
+- `TvCast` owns device discovery and DLNA commands. `MediaRelay` now lives in its own file and owns scoped HTTP streaming, receiver endpoints, and RAM-prefetch coordination. Existing imports re-export the relay for compatibility.
+- `RamMediaBuffer` owns bounded media storage and eviction independently of transport.
+- Casting discovery is injectable, allowing widget tests without a real TV. `CastStatusBar` owns only status presentation and polling lifecycle; callers perform transport operations.
+- This is an incremental separation of responsibilities, not a claim that every class has been fully redesigned. The cast dialog still coordinates its form state, and the relay still combines several HTTP concerns; future playback providers should use separate adapters rather than adding provider-specific branches throughout the UI.
+
+### Validation and use
+
+Run `flutter test`, `flutter analyze`, and `flutter build apk --debug`. Tests cover address/search encoding, last-page persistence/restoration and invalid state, collapsed results, a 360-pixel-wide casting flow, relay Range requests, HLS rewriting, the 128 MiB cache, seeking, and rate-limit handling. Live TV tests under `integration_test/` are optional and require a connected phone and TV; they are not built-in test pages.
+
+For casting keep the app open and both devices on the same Wi-Fi. LG HLS uses the TV browser receiver. Public Google Drive links use Google's own preview player on the TV. RAM prefetch applies only to supported HLS VOD segments; it cannot guarantee uninterrupted playback. Existing token storage and scoped cookie forwarding are unchanged.
+
+---
+
 # متصفح السكربتات — Flutter لأندرويد
 
 متصفح يشغّل ملفات JavaScript من GitHub على الصفحة المفتوحة، مع حماية محلية من الإعلانات والتتبع والنوافذ الجديدة.
@@ -119,3 +152,6 @@ Prefetch uses one request at a time, a short delay, a 16 MiB per-segment limit, 
 Live HLS, byte-range playlists, and direct MP4 continue through the normal relay. Google Drive preview plays directly on the TV and does not use this phone cache. Keep the app open while casting.
 
 Validation: flutter test test/ram_media_buffer_test.dart covers memory limits, cached Range requests, seeking, and rate-limit handling with a local test server.
+
+Validation for this revision: 52 automated tests passed; flutter analyze reported no issues; Android debug APK built successfully. Live TV playback was not repeated for this UI revision.
+

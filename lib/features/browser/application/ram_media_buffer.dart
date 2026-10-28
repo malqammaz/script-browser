@@ -1,4 +1,3 @@
-import 'dart:collection';
 import 'dart:typed_data';
 
 class BufferedSegment {
@@ -11,7 +10,7 @@ class BufferedSegment {
 class RamMediaBuffer {
   RamMediaBuffer({this.capacity = 128 * 1024 * 1024});
   final int capacity;
-  final _entries = LinkedHashMap<Uri, BufferedSegment>();
+  final _entries = <Uri, BufferedSegment>{};
   int usedBytes = 0;
   int get freeBytes => capacity - usedBytes;
   BufferedSegment? get(Uri uri) {

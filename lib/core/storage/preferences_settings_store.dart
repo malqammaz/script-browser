@@ -13,6 +13,7 @@ class PreferencesSettingsStore implements SettingsStore {
 
   @override
   Future<AppSettings> load() async => AppSettings(
+    lastUrl: preferences.getString('lastUrl') ?? 'https://www.google.com/',
     github: GitHubConfig(
       repository: preferences.getString('repo') ?? defaultGitHub.repository,
       branch: preferences.getString('branch') ?? defaultGitHub.branch,
@@ -29,6 +30,11 @@ class PreferencesSettingsStore implements SettingsStore {
     customDomains: (preferences.getStringList('adBlockCustomDomains') ?? [])
         .toSet(),
   );
+
+  @override
+  Future<void> saveLastUrl(String url) async {
+    await preferences.setString('lastUrl', url);
+  }
 
   @override
   Future<void> saveGitHub(GitHubConfig config) async {

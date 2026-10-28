@@ -22,8 +22,9 @@ void main() {
           useBrowserReceiver: true,
         );
         debugPrint('DRIVE_BROWSER_READY ${cast.receiverUrl}');
-        for (var i = 0; i < 180 && !cast.relay!.receiverPageOpened; i++)
+        for (var i = 0; i < 180 && !cast.relay!.receiverPageOpened; i++) {
           await tester.pump(const Duration(seconds: 1));
+        }
         expect(cast.relay!.receiverPageOpened, true);
         await tester.pump(const Duration(seconds: 45));
         debugPrint(

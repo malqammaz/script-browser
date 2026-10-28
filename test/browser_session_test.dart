@@ -153,6 +153,34 @@ void main() {
       throwsFormatException,
     );
   });
+  test('Restores last website and ignores blank page callbacks', () async {
+    store.settings = const AppSettings(
+      lastUrl: 'https://example.com/watch#episode',
+    );
+    await session.initialize();
+    expect(engine.pageUrl, 'https://example.com/watch#episode');
+    session.pageFinished('https://example.com/next');
+    expect(store.savedLastUrl, 'https://example.com/next');
+    session.pageFinished('about:blank');
+    expect(store.savedLastUrl, 'https://example.com/next');
+  });
+  test('Invalid saved state falls back to Google', () async {
+    store.settings = const AppSettings(lastUrl: 'file:///bad');
+    await session.initialize();
+    expect(engine.pageUrl, 'https://www.google.com/');
+  });
+  test('Searches Google with safely encoded text', () {
+    final uri = BrowserSession.parseAddress('انمي & cats #1');
+    expect(uri.host, 'www.google.com');
+    expect(uri.path, '/search');
+    expect(uri.queryParameters['q'], 'انمي & cats #1');
+    expect(BrowserSession.parseAddress('cats').queryParameters['q'], 'cats');
+    expect(
+      BrowserSession.parseAddress('localhost:8765/watch').host,
+      'localhost',
+    );
+    expect(BrowserSession.parseAddress('192.168.1.10:8878/tv').port, 8878);
+  });
   test('Address parsing adds HTTPS and rejects unsupported schemes', () {
     expect(
       BrowserSession.parseAddress(' example.com/a ').toString(),

@@ -5,10 +5,12 @@ class AppSettings {
     this.github = const GitHubConfig(),
     this.script = ScriptDocument.example,
     this.adBlockEnabled = true,
+    this.lastUrl = 'https://www.google.com/',
     this.allowedSites = const {},
     this.customDomains = const {},
   });
   final GitHubConfig github;
+  final String lastUrl;
   final ScriptDocument script;
   final bool adBlockEnabled;
   final Set<String> allowedSites;
@@ -17,6 +19,7 @@ class AppSettings {
 
 abstract interface class SettingsStore {
   Future<AppSettings> load();
+  Future<void> saveLastUrl(String url);
   Future<void> saveGitHub(GitHubConfig config);
   Future<void> saveScript(ScriptDocument document);
   Future<void> saveProtection({

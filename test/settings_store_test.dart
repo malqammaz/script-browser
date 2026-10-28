@@ -4,6 +4,16 @@ import 'package:script_browser/core/storage/preferences_settings_store.dart';
 import 'package:script_browser/features/scripts/domain/script.dart';
 
 void main() {
+  test('Persists the last website independently of script settings', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = PreferencesSettingsStore(
+      await SharedPreferences.getInstance(),
+    );
+    expect((await store.load()).lastUrl, 'https://www.google.com/');
+    await store.saveLastUrl('https://example.com/watch#2');
+    await store.saveGitHub(const GitHubConfig(repository: 'owner/repo'));
+    expect((await store.load()).lastUrl, 'https://example.com/watch#2');
+  });
   test('Uses the default repository only before user configuration', () async {
     SharedPreferences.setMockInitialValues({});
     final preferences = await SharedPreferences.getInstance();
