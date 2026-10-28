@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 import 'package:xml/xml.dart';
 import 'media_source.dart';
+import 'ram_media_buffer.dart';
 
 class CastTv {
   const CastTv(this.name, this.control);
@@ -225,7 +227,24 @@ class MediaRelay {
   int? lastUpstreamStatus;
   String? lastContentType;
   String? lastFailure;
-  MediaRelay({required this.cookies, this.headers = const {}});
+  MediaRelay({
+    required this.cookies,
+    this.headers = const {},
+    int bufferBytes = 128 * 1024 * 1024,
+    this.maxSegmentBytes = 16 * 1024 * 1024,
+    this.prefetchSeconds = 120,
+    this.prefetchDelay = const Duration(milliseconds: 250),
+  }) : buffer = RamMediaBuffer(capacity: bufferBytes);
+  final RamMediaBuffer buffer;
+  final int maxSegmentBytes;
+  final double prefetchSeconds;
+  final Duration prefetchDelay;
+  final _pending = <Uri, Future<BufferedSegment?>>{};
+  List<(Uri, double)> _plan = [];
+  Uri? _planUrl;
+  int _playIndex = 0, _nextIndex = 0, _generation = 0;
+  bool _prefetching = false, _closed = false;
+  DateTime? _pausedUntil;
   final Future<String> Function(Uri) cookies;
   final Map<String, String> headers;
   final _client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
@@ -266,18 +285,214 @@ class MediaRelay {
     return _base.resolve('/$_secret/$id');
   }
 
-  String rewritePlaylist(String text, Uri original) => text
-      .split('\n')
-      .map((line) {
-        if (line.trim().isEmpty) return line;
-        if (line.trimLeft().startsWith('#'))
-          return line.replaceAllMapped(
-            RegExp(r'URI="([^"]+)"'),
-            (m) => 'URI="${register(original.resolve(m[1]!))}"',
-          );
-        return '${register(original.resolve(line.trim()))}';
-      })
-      .join('\n');
+  String rewritePlaylist(String text, Uri original) {
+    _configureBuffer(text, original);
+    return text
+        .split('\n')
+        .map((line) {
+          if (line.trim().isEmpty) return line;
+          if (line.trimLeft().startsWith('#'))
+            return line.replaceAllMapped(
+              RegExp(r'URI="([^"]+)"'),
+              (m) => 'URI="${register(original.resolve(m[1]!))}"',
+            );
+          return '${register(original.resolve(line.trim()))}';
+        })
+        .join('\n');
+  }
+
+  void _configureBuffer(String text, Uri original) {
+    // Cache immutable VOD segments. Byte-range playlists may reference one huge file.
+    if (!text.contains('#EXTINF:') ||
+        !text.contains('#EXT-X-ENDLIST') ||
+        text.contains('#EXT-X-BYTERANGE'))
+      return;
+    final plan = <(Uri, double)>[];
+    double duration = 0;
+    for (final raw in text.split('\n')) {
+      final line = raw.trim();
+      if (line.startsWith('#EXTINF:'))
+        duration = double.tryParse(line.substring(8).split(',').first) ?? 6;
+      else if (line.isNotEmpty && !line.startsWith('#'))
+        plan.add((original.resolve(line), duration > 0 ? duration : 6));
+    }
+    if (plan.isEmpty || (_planUrl == original && _plan.isNotEmpty)) return;
+    _generation++;
+    buffer.clear();
+    _planUrl = original;
+    _plan = plan;
+    _playIndex = 0;
+    _nextIndex = 0;
+    _kickPrefetch();
+  }
+
+  void _segmentRequested(Uri uri) {
+    final index = _plan.indexWhere((entry) => entry.$1 == uri);
+    if (index < 0) return;
+    if ((index - _playIndex).abs() > 4) {
+      _generation++;
+      buffer.clear();
+      _nextIndex = index + 1;
+    }
+    _playIndex = index;
+    _nextIndex = max(_nextIndex, index + 1);
+    final old = _plan.take(max(0, index - 2)).map((entry) => entry.$1).toSet();
+    buffer.removeWhere(old.contains);
+    _kickPrefetch();
+  }
+
+  void _pauseFor(HttpClientResponse response) {
+    if (![429, 503].contains(response.statusCode)) return;
+    final value = response.headers.value('retry-after') ?? '';
+    final seconds = int.tryParse(value);
+    DateTime? date;
+    try {
+      date = HttpDate.parse(value);
+    } catch (_) {}
+    final minimum = DateTime.now().add(const Duration(seconds: 30));
+    final requested = seconds != null
+        ? DateTime.now().add(Duration(seconds: seconds))
+        : date ?? minimum;
+    _pausedUntil = requested.isAfter(minimum) ? requested : minimum;
+  }
+
+  Future<(HttpClientResponse, Uri)> _openUpstream(
+    Uri uri, {
+    String method = 'GET',
+    String? range,
+  }) async {
+    for (var redirect = 0; redirect < 6; redirect++) {
+      final req = await _client.openUrl(method, uri);
+      req.followRedirects = false;
+      for (final entry in headers.entries) {
+        if ([
+          'user-agent',
+          'referer',
+          'origin',
+        ].contains(entry.key.toLowerCase()))
+          req.headers.set(entry.key, entry.value);
+      }
+      final cookie = await cookies(uri);
+      if (cookie.isNotEmpty) req.headers.set('Cookie', cookie);
+      if (range != null) req.headers.set('Range', range);
+      final upstream = await req.close().timeout(const Duration(seconds: 25));
+      if ([301, 302, 303, 307, 308].contains(upstream.statusCode)) {
+        final target = upstream.headers.value('location');
+        await upstream.drain<void>();
+        if (target == null)
+          throw const FormatException('Invalid media redirect');
+        uri = uri.resolve(target);
+        if (!['http', 'https'].contains(uri.scheme))
+          throw const FormatException('Invalid redirect');
+        continue;
+      }
+      _pauseFor(upstream);
+      return (upstream, uri);
+    }
+    throw StateError('Too many media redirects');
+  }
+
+  void _kickPrefetch() {
+    if (_closed ||
+        _prefetching ||
+        _plan.isEmpty ||
+        (_pausedUntil?.isAfter(DateTime.now()) ?? false))
+      return;
+    _prefetching = true;
+    unawaited(() async {
+      final generation = _generation;
+      try {
+        while (!_closed &&
+            generation == _generation &&
+            _nextIndex < _plan.length) {
+          if (_pausedUntil?.isAfter(DateTime.now()) ?? false) break;
+          final ahead = _plan
+              .skip(_playIndex)
+              .take(max(0, _nextIndex - _playIndex))
+              .fold<double>(0, (sum, entry) => sum + entry.$2);
+          if (ahead >= prefetchSeconds ||
+              buffer.freeBytes < min(maxSegmentBytes, buffer.capacity))
+            break;
+          final uri = _plan[_nextIndex++].$1;
+          if (buffer.contains(uri)) continue;
+          final future = _loadSegment(uri, generation);
+          _pending[uri] = future;
+          try {
+            final data = await future;
+            if (data == null) break;
+            if (data != null && !_closed && generation == _generation)
+              buffer.put(uri, data);
+          } finally {
+            _pending.remove(uri);
+          }
+          if (prefetchDelay > Duration.zero)
+            await Future<void>.delayed(prefetchDelay);
+        }
+      } finally {
+        _prefetching = false;
+        if (!_closed && generation != _generation) _kickPrefetch();
+      }
+    }());
+  }
+
+  Future<BufferedSegment?> _loadSegment(Uri uri, int generation) async {
+    try {
+      final (response, _) = await _openUpstream(uri);
+      if (response.statusCode != 200 ||
+          response.contentLength > maxSegmentBytes) {
+        await response.listen((_) {}).cancel();
+        return null;
+      }
+      final bytes = BytesBuilder(copy: false);
+      int size = 0;
+      await for (final chunk in response.timeout(const Duration(seconds: 25))) {
+        if (_closed || generation != _generation) return null;
+        size += chunk.length;
+        if (size > maxSegmentBytes || size > buffer.capacity) return null;
+        bytes.add(chunk);
+      }
+      return BufferedSegment(
+        bytes.takeBytes(),
+        response.headers.contentType?.mimeType ?? 'application/octet-stream',
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _serveBuffered(HttpRequest request, BufferedSegment data) {
+    final response = request.response;
+    final length = data.bytes.length;
+    response.headers.set('Content-Type', data.contentType);
+    response.headers.set('Accept-Ranges', 'bytes');
+    var start = 0, end = length - 1;
+    final range = request.headers.value('range');
+    if (range != null) {
+      final match = RegExp(r'^bytes=(\d*)-(\d*)$').firstMatch(range);
+      if (match == null || (match[1]!.isEmpty && match[2]!.isEmpty)) {
+        response.statusCode = 416;
+        response.headers.set('Content-Range', 'bytes */$length');
+        return;
+      }
+      if (match[1]!.isEmpty) {
+        start = max(0, length - (int.tryParse(match[2]!) ?? 0));
+      } else {
+        start = int.tryParse(match[1]!) ?? length;
+        if (match[2]!.isNotEmpty)
+          end = min(end, int.tryParse(match[2]!) ?? end);
+      }
+      if (start >= length || start > end) {
+        response.statusCode = 416;
+        response.headers.set('Content-Range', 'bytes */$length');
+        return;
+      }
+      response.statusCode = 206;
+      response.headers.set('Content-Range', 'bytes $start-$end/$length');
+    }
+    response.contentLength = max(0, end - start + 1);
+    if (request.method != 'HEAD' && length > 0)
+      response.add(Uint8List.sublistView(data.bytes, start, end + 1));
+  }
 
   Future<void> _serve(HttpRequest request) async {
     final response = request.response;
@@ -307,7 +522,18 @@ v.addEventListener('pause',()=>report('paused'));
 v.addEventListener('error',()=>{s.textContent='This stream could not be played (error '+(v.error?v.error.code:'unknown')+').';report('error');});
 v.addEventListener('timeupdate',()=>{if(v.currentTime-last>2){last=v.currentTime;report('playing');}});
 v.play().catch(()=>{s.textContent='Press Play on the video to start.';});
+setInterval(()=>{if(!v.paused&&!v.error)fetch('/tv-buffer').then(r=>r.json()).then(b=>{s.textContent='Playing · RAM buffer '+(b.used/1048576).toFixed(1)+' / '+(b.limit/1048576).toFixed(0)+' MB';}).catch(()=>{});},4000);
 </script></body></html>''',
+        );
+        return;
+      }
+      if (request.connectionInfo?.remoteAddress.address == _peer &&
+          request.method == 'GET' &&
+          request.uri.path == '/tv-buffer') {
+        response.headers.contentType = ContentType.json;
+        response.headers.set('Cache-Control', 'no-store');
+        response.write(
+          jsonEncode({'used': buffer.usedBytes, 'limit': buffer.capacity}),
         );
         return;
       }
@@ -333,37 +559,29 @@ v.play().catch(()=>{s.textContent='Press Play on the video to start.';});
         response.statusCode = 405;
         return;
       }
-      var uri = _urls[parts[1]]!;
-      HttpClientResponse? upstream;
-      for (var redirect = 0; redirect < 6; redirect++) {
-        final req = await _client.openUrl(request.method, uri);
-        req.followRedirects = false;
-        for (final entry in headers.entries)
-          if ([
-            'user-agent',
-            'referer',
-            'origin',
-          ].contains(entry.key.toLowerCase()))
-            req.headers.set(entry.key, entry.value);
-        final cookie = await cookies(uri);
-        if (cookie.isNotEmpty) req.headers.set('Cookie', cookie);
-        final range = request.headers.value('range');
-        if (range != null) req.headers.set('Range', range);
-        upstream = await req.close().timeout(const Duration(seconds: 25));
-        if ([301, 302, 303, 307, 308].contains(upstream.statusCode)) {
-          final target = upstream.headers.value('location');
-          await upstream.drain<void>();
-          if (target == null)
-            throw const FormatException('Invalid media redirect');
-          uri = uri.resolve(target);
-          if (!['http', 'https'].contains(uri.scheme))
-            throw const FormatException('Invalid redirect');
-          upstream = null;
-          continue;
-        }
-        break;
+      final source = _urls[parts[1]]!;
+      BufferedSegment? cached = buffer.get(source);
+      if (cached == null && _pending.containsKey(source))
+        cached = await _pending[source];
+      if (request.method == 'GET') _segmentRequested(source);
+      if (cached != null) {
+        _serveBuffered(request, cached);
+        return;
       }
-      if (upstream == null) throw StateError('Too many media redirects');
+      if (_plan.any((entry) => entry.$1 == source) &&
+          (_pausedUntil?.isAfter(DateTime.now()) ?? false)) {
+        response.statusCode = 429;
+        response.headers.set(
+          'Retry-After',
+          max(1, _pausedUntil!.difference(DateTime.now()).inSeconds),
+        );
+        return;
+      }
+      final (upstream, uri) = await _openUpstream(
+        source,
+        method: request.method,
+        range: request.headers.value('range'),
+      );
       response.statusCode = upstream.statusCode;
       lastUpstreamStatus = upstream.statusCode;
       final type = upstream.headers.contentType?.mimeType ?? '';
@@ -408,6 +626,10 @@ v.play().catch(()=>{s.textContent='Press Play on the video to start.';});
   }
 
   Future<void> close() async {
+    _closed = true;
+    _generation++;
+    buffer.clear();
+    _plan.clear();
     _client.close(force: true);
     await _server?.close(force: true);
     _server = null;

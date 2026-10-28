@@ -109,3 +109,13 @@ flutter build apk --debug
 يتم تضمين صفحة Drive /preview الأصلية على التلفزيون؛ لا يتم استخراج أو تنزيل الملف الأصلي، ولا قبول تحذير فحص الفيروسات، ولا استخدام حساب Google أو OAuth. تشغيل المعاينة ينقل بيانات الفيديو كالمعتاد إلى مشغل المعاينة، وقد يستخدم المتصفح تخزيناً مؤقتاً. لا يعد هذا فحص أمان للمحتوى. إذا تعذرت المعاينة لا يوجد fallback تلقائي إلى download/confirm.
 
 التجربة الفعلية على الملف العام المقدم: أكد المستخدم عمل الصورة والصوت على LG. محاولة نسخ رابط تدفق Drive الخام لم تنجح لأن المشغل يستخدم yt-ump ومسارات فيديو وصوت منفصلة؛ يحتفظ التطبيق بخيار صفحة المعاينة لتجنب هذه المشكلة.
+
+## RAM buffer (1.5.2)
+
+Supported HLS VOD playlists now prefetch sequential segments, keeping at most 128 MiB of media bytes in phone RAM and looking roughly 120 seconds ahead. Old segments are discarded as playback advances; seeking reprioritizes the new position. The TV player displays current buffer usage. No video files are written by this buffer. Total app memory can exceed the cache limit, and Android may reclaim the app under memory pressure.
+
+Prefetch uses one request at a time, a short delay, a 16 MiB per-segment limit, and stops on a failed request. HTTP 429/503 pauses prefetch according to Retry-After (at least 30 seconds). These limits cannot guarantee uninterrupted playback or prevent a host from restricting requests.
+
+Live HLS, byte-range playlists, and direct MP4 continue through the normal relay. Google Drive preview plays directly on the TV and does not use this phone cache. Keep the app open while casting.
+
+Validation: flutter test test/ram_media_buffer_test.dart covers memory limits, cached Range requests, seeking, and rate-limit handling with a local test server.
