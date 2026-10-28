@@ -216,3 +216,15 @@ Regression coverage includes nested sources, shadow-root videos, JW HLS metadata
 The frame probe also uses an HTTP(S) document base/referrer for `about:srcdoc` frames and retries if the platform bridge was not ready on its first report. Node regression tests verify both cases.
 
 Installed-phone validation: on the supplied episode 2, selecting HGCloud produced one native media candidate and one declared-HLS candidate before Play. The source ended in .txt and retained hanerix.com as referrer. TV playback of this HGCloud source was not exercised in this detection check. Static analysis reported no issues.
+
+## Public MEGA preview on TV (1.7.2)
+
+MEGA public `/file/ID#KEY` and `/embed/ID#KEY` links are detected from embedded frames and normalized to MEGA's official `/embed/ID#KEY` player. Only HTTPS mega.nz file links with a supplied public-file key are supported; folders, accounts, missing keys, and foreign hosts are rejected. The key remains part of the fragment so the official client can decrypt the public file normally.
+
+On LG choose the MEGA Public preview candidate in Cast, open the local TV receiver and press Play in MEGA's player. If the iframe cannot load, the receiver offers an "Open MEGA directly" link in the same TV browser tab. This standalone HTTPS route can avoid iframe restrictions. Playback depends on the LG browser's compatibility, MEGA availability/transfer quota, and the file's codec. It is not guaranteed by detecting a public link.
+
+The TV contacts MEGA directly; the phone does not decrypt or proxy encrypted video bytes, obtain account credentials, bypass MEGA limits, or save an original video file. The phone's 128 MiB HLS cache does not apply to this route. The TV browser may use its own temporary cache. Controls are in MEGA's player, and the app cannot read cross-origin playback progress.
+
+Source: https://github.com/meganz/webclient/blob/master/README.md. Unit tests verify strict public-link normalization, retained fragment keys, and receiver embedding without native upstream/cookie requests.
+
+Installed-phone validation: the supplied episode's MEGA iframe appears as one native preview candidate with its supplied fragment key preserved. All 61 Flutter tests and the Node frame-probe tests passed; static analysis reported no issues. LG picture/sound verification is still required.

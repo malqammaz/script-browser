@@ -6,6 +6,8 @@ Uri? castableMedia(String value, {bool fromVideoElement = false}) {
       uri.host.isEmpty) {
     return null;
   }
+  final mega = publicMegaPreview(uri);
+  if (mega != null) return mega;
   if (fromVideoElement) return uri;
   if (RegExp(r'\.(mp4|m3u8)$', caseSensitive: false).hasMatch(uri.path)) {
     return uri;
@@ -45,3 +47,25 @@ Uri? publicDrivePreview(Uri uri) {
 
 bool isDrivePreviewMedia(Uri uri) =>
     uri.path.endsWith('/videoplayback') && castableMedia('$uri') != null;
+
+/// Only public MEGA file links containing their supplied key; never folders or accounts.
+Uri? publicMegaPreview(Uri uri) {
+  if (uri.scheme != 'https' ||
+      !['mega.nz', 'www.mega.nz'].contains(uri.host.toLowerCase()) ||
+      uri.userInfo.isNotEmpty) {
+    return null;
+  }
+  final path = RegExp(
+    r'^/(?:file|embed)/([A-Za-z0-9_-]{8})/?$',
+  ).firstMatch(uri.path);
+  if (path == null || !RegExp(r'^[A-Za-z0-9_-]{43}$').hasMatch(uri.fragment)) {
+    return null;
+  }
+  return Uri.https(
+    'mega.nz',
+    '/embed/${path[1]}',
+  ).replace(fragment: uri.fragment);
+}
+
+Uri? publicEmbeddedPreview(Uri uri) =>
+    publicDrivePreview(uri) ?? publicMegaPreview(uri);

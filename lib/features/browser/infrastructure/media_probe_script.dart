@@ -21,6 +21,7 @@ const mediaProbeScript = r'''
   const observer=new MutationObserver(schedule);
   function scan(){
     scheduled=false;
+    if(location.hostname==='mega.nz'||location.hostname==='www.mega.nz')report(location.href,'preview');
     const queue=[document];let count=0;
     while(queue.length&&count++<64){
       const root=queue.shift();
@@ -35,6 +36,7 @@ const mediaProbeScript = r'''
         for(const source of v.querySelectorAll?v.querySelectorAll('source'):[])report(source.src,'element',source.type);
       }
       for(const node of root.querySelectorAll('*'))if(node.shadowRoot)queue.push(node.shadowRoot);
+      for(const frame of root.querySelectorAll('iframe')){try{const u=new URL(frame.src,location.href);if(u.hostname==='mega.nz'||u.hostname==='www.mega.nz')report(u.href,'preview');}catch(_){}}
     }
     try{
       if(typeof window.jwplayer==='function')for(const item of window.jwplayer().getPlaylist()||[]){

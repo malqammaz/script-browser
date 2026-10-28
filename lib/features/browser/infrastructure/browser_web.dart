@@ -100,7 +100,7 @@ class BrowserWeb implements BrowserEngine {
         }
       }
     }
-    final preview = publicDrivePreview(Uri.parse(pageUrl));
+    final preview = publicEmbeddedPreview(Uri.parse(pageUrl));
     if (preview != null) mediaRequests.putIfAbsent('$preview', () => {});
   }
 

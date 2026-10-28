@@ -5,6 +5,35 @@ import 'package:script_browser/features/browser/application/tv_cast.dart';
 
 void main() {
   test(
+    'MEGA receiver embeds the official public player without fetching encrypted bytes',
+    () async {
+      final key = 'A' * 43;
+      final relay = MediaRelay(
+        cookies: (_) async => throw StateError('No native MEGA cookie request'),
+      );
+      final client = HttpClient();
+      try {
+        final url = await relay.start(
+          Uri.parse('https://mega.nz/file/AbCd1234#$key'),
+          InternetAddress.loopbackIPv4,
+          '127.0.0.1',
+        );
+        final response = await (await client.getUrl(
+          url.replace(path: '/tv'),
+        )).close();
+        final html = await utf8.decoder.bind(response).join();
+        expect(html, contains('https://mega.nz/embed/AbCd1234#$key'));
+        expect(html, contains('MEGA public preview'));
+        expect(html, contains('Open MEGA directly'));
+        expect(html, isNot(contains('export=download')));
+        expect(relay.lastUpstreamStatus, isNull);
+      } finally {
+        client.close(force: true);
+        await relay.close();
+      }
+    },
+  );
+  test(
     'Declared HLS rewrites txt master and variant manifests without altering upstream URLs',
     () async {
       final upstream = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

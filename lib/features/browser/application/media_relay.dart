@@ -351,10 +351,15 @@ class MediaRelay {
         response.headers.set('Cache-Control', 'no-store');
         final preview = _original == null
             ? null
-            : publicDrivePreview(_original!);
+            : publicEmbeddedPreview(_original!);
         if (preview != null) {
+          final mega = publicMegaPreview(preview) != null;
+          final provider = mega ? 'MEGA' : 'Google Drive';
+          final direct = mega
+              ? '<a style="display:block;height:40px;text-align:center;color:white;font:18px sans-serif;line-height:40px" href="${_escape('$preview')}">Open MEGA directly if the player does not load</a>'
+              : '';
           response.write(
-            '''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Drive preview on TV</title><style>html,body{margin:0;width:100%;height:100%;background:black}iframe{border:0;width:100%;height:100%}</style></head><body><iframe src="${_escape('$preview')}" allow="autoplay; fullscreen" allowfullscreen title="Google Drive public preview"></iframe></body></html>''',
+            '''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>$provider preview on TV</title><style>html,body{margin:0;width:100%;height:100%;background:black}iframe{border:0;width:100%;height:${mega ? 'calc(100% - 40px)' : '100%'}}</style></head><body>$direct<iframe src="${_escape('$preview')}" allow="autoplay; fullscreen" allowfullscreen title="$provider public preview"></iframe></body></html>''',
           );
           return;
         }

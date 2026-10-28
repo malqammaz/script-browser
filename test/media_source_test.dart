@@ -2,6 +2,39 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:script_browser/features/browser/application/media_source.dart';
 
 void main() {
+  test(
+    'Public MEGA files normalize to official embeds and retain their supplied key',
+    () {
+      final key = 'A' * 43;
+      final file = Uri.parse('https://mega.nz/file/AbCd1234#$key');
+      expect(
+        publicMegaPreview(file).toString(),
+        'https://mega.nz/embed/AbCd1234#$key',
+      );
+      expect(
+        castableMedia('$file').toString(),
+        'https://mega.nz/embed/AbCd1234#$key',
+      );
+      expect(
+        publicMegaPreview(Uri.parse('https://mega.nz/folder/AbCd1234#$key')),
+        isNull,
+      );
+      expect(
+        publicMegaPreview(Uri.parse('https://mega.nz/file/AbCd1234')),
+        isNull,
+      );
+      expect(
+        publicMegaPreview(
+          Uri.parse('https://mega.nz.evil.example/file/AbCd1234#$key'),
+        ),
+        isNull,
+      );
+      expect(
+        publicMegaPreview(Uri.parse('http://mega.nz/file/AbCd1234#$key')),
+        isNull,
+      );
+    },
+  );
   test('Extensionless URLs require an actual video element', () {
     const url = 'https://cdn.example/opaque/token~abc?token=signed&expiry=123';
     expect(castableMedia(url), isNull);

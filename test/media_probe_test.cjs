@@ -38,3 +38,12 @@ console.log('Frame media probe tests passed');
  assert.equal(calls.length,1);assert.equal(calls[0].page,doc.baseURI);
  console.log('Late bridge and srcdoc frame tests passed');
 }
+// Public MEGA embeds are offered as previews, not as encrypted byte streams.
+{
+ const calls=[],tasks=[];const key='A'.repeat(43);
+ const iframe={src:'https://mega.nz/embed/AbCd1234#'+key};
+ const context={document:{querySelectorAll:s=>s==='iframe'?[iframe]:[]},location:{href:'https://example.com/watch',hostname:'example.com'},navigator:{userAgent:'Phone'},URL,WeakSet,Set,Promise,setTimeout:f=>tasks.push(f),MutationObserver:class{observe(){}},window:{addEventListener(){},flutter_inappwebview:{callHandler:(_,data)=>{calls.push(data);return Promise.resolve();}}}};
+ vm.runInNewContext(source,context);tasks.splice(0).forEach(f=>f());
+ assert.equal(calls.length,1);assert.equal(calls[0].kind,'preview');assert(calls[0].url.endsWith('#'+key));
+ console.log('MEGA public iframe detection test passed');
+}

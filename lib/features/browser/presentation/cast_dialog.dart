@@ -121,7 +121,7 @@ class _CastDialogState extends State<CastDialog> {
       useBrowserReceiver:
           lgBrowser &&
           selected!.name.toLowerCase().contains('lg') &&
-          (publicDrivePreview(uri) != null ||
+          (publicEmbeddedPreview(uri) != null ||
               widget.web.isHlsMedia(uri) ||
               isDrivePreviewMedia(uri)),
       headers: widget.web.mediaRequests[raw] ?? {'Referer': widget.web.pageUrl},
@@ -279,7 +279,9 @@ class _CastDialogState extends State<CastDialog> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           subtitle: Text(
-                            publicDrivePreview(Uri.parse(url)) != null
+                            publicMegaPreview(Uri.parse(url)) != null
+                                ? 'MEGA · Public preview'
+                                : publicDrivePreview(Uri.parse(url)) != null
                                 ? 'Google Drive · Public preview'
                                 : widget.web.isHlsMedia(Uri.parse(url))
                                 ? 'HLS · Adaptive stream'
@@ -347,7 +349,7 @@ class _CastDialogState extends State<CastDialog> {
                             onChanged: (_) => setState(() {}),
                             textDirection: TextDirection.ltr,
                             decoration: const InputDecoration(
-                              labelText: 'MP4 / M3U8 / Google Drive',
+                              labelText: 'MP4 / M3U8 / Drive / MEGA',
                             ),
                           ),
                           SwitchListTile(
