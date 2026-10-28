@@ -5,7 +5,7 @@ import 'package:script_browser/features/browser/application/tv_cast.dart';
 
 void main() {
   test(
-    'MEGA receiver embeds the official public player without fetching encrypted bytes',
+    'MEGA receiver redirects to the normal file page without fetching encrypted bytes',
     () async {
       final key = 'A' * 43;
       final relay = MediaRelay(
@@ -14,18 +14,21 @@ void main() {
       final client = HttpClient();
       try {
         final url = await relay.start(
-          Uri.parse('https://mega.nz/file/AbCd1234#$key'),
+          Uri.parse('https://mega.nz/embed/AbCd1234#$key'),
           InternetAddress.loopbackIPv4,
           '127.0.0.1',
         );
-        final response = await (await client.getUrl(
-          url.replace(path: '/tv'),
-        )).close();
-        final html = await utf8.decoder.bind(response).join();
-        expect(html, contains('https://mega.nz/embed/AbCd1234#$key'));
-        expect(html, contains('MEGA public preview'));
-        expect(html, contains('Open MEGA directly'));
-        expect(html, isNot(contains('export=download')));
+        final request = await client.getUrl(url.replace(path: '/tv'));
+        request.followRedirects = false;
+        final response = await request.close();
+        expect(response.statusCode, HttpStatus.found);
+        expect(
+          response.headers.value('location'),
+          'https://mega.nz/file/AbCd1234#$key',
+        );
+        expect(response.headers.value('cache-control'), 'no-store');
+        final body = await utf8.decoder.bind(response).join();
+        expect(body, isNot(contains('<iframe')));
         expect(relay.lastUpstreamStatus, isNull);
       } finally {
         client.close(force: true);

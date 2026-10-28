@@ -229,4 +229,12 @@ Source: https://github.com/meganz/webclient/blob/master/README.md. Unit tests ve
 
 Installed-phone validation: the supplied episode's MEGA iframe appears as one native preview candidate with its supplied fragment key preserved. All 61 Flutter tests and the Node frame-probe tests passed; static analysis reported no issues. LG picture/sound verification is still required.
 
-Actual MEGA compatibility result on LG UR78006LL: the user reported that both the embedded preview and the standalone MEGA player load but remain stuck when playing this file. The exact same MEGA public-file URL was compared in memory on the phone and TV session. The phone's MEGA player reached readyState 4 and played past 10 seconds, then was paused after the test. The preview route is therefore NOT a verified working MEGA casting solution for this LG/file. A dedicated authorized MEGA streaming/decryption adapter would be separate work; this release only delegates to the official web player. Existing HGCloud/Uqload casting remains the practical alternative.
+MEGA compatibility clarification on LG UR78006LL: the user later clarified that the video actually played while a loading indicator remained visible. The earlier interpretation of complete playback failure was incorrect. The same public-file URL also played past 10 seconds on the phone and was then paused. Version 1.7.3 switches the TV to the normal MEGA file page rather than its embedded player; removal of MEGA's own spinner still needs a TV check. No native MEGA download/decryption adapter was added.
+
+## Direct MEGA TV redirect (1.7.3)
+
+Clarification from the user: the MEGA video did play on LG, but a loading indicator stayed visible. Earlier notes treating that report as complete playback failure were a misunderstanding.
+
+The local `/tv` receiver now responds with a non-cacheable HTTP 302 redirect to the normal official `https://mega.nz/file/ID#KEY` page for a public MEGA source. It no longer embeds MEGA in an iframe or opens its `/embed/` endpoint on the TV. The supplied public key is preserved in the fragment. Google Drive keeps its existing iframe preview; direct video/HLS casting is unchanged. No MEGA RAM downloader or native decryption was added.
+
+Open the bookmarked phone `/tv` address again to load the current cast. Refreshing an already-redirected MEGA page refreshes that MEGA file, not the phone receiver. MEGA controls its own loading indicator, so disappearance of the spinner still requires a TV check. Tests verify the redirect status, target/key preservation, no-cache response, absence of an iframe, and no native upstream/cookie request.

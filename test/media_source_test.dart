@@ -8,6 +8,16 @@ void main() {
       final key = 'A' * 43;
       final file = Uri.parse('https://mega.nz/file/AbCd1234#$key');
       expect(
+        publicMegaFile(
+          Uri.parse('https://mega.nz/embed/AbCd1234#$key'),
+        ).toString(),
+        '$file',
+      );
+      expect(
+        publicMegaFile(Uri.parse('https://mega.nz/file/AbCd1234')),
+        isNull,
+      );
+      expect(
         publicMegaPreview(file).toString(),
         'https://mega.nz/embed/AbCd1234#$key',
       );

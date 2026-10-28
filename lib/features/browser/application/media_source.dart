@@ -69,3 +69,9 @@ Uri? publicMegaPreview(Uri uri) {
 
 Uri? publicEmbeddedPreview(Uri uri) =>
     publicDrivePreview(uri) ?? publicMegaPreview(uri);
+
+/// Open the normal MEGA file page as a top-level TV navigation.
+Uri? publicMegaFile(Uri uri) {
+  final preview = publicMegaPreview(uri);
+  return preview?.replace(path: '/file/${preview.pathSegments.last}');
+}
