@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:script_browser/ad_blocker.dart';
+import 'package:script_browser/features/protection/domain/ad_blocker.dart';
 
 void main() {
   late AdBlocker blocker;

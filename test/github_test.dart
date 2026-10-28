@@ -1,12 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:script_browser/github.dart';
+import 'package:script_browser/features/scripts/data/github_script_repository.dart';
+import 'package:script_browser/features/scripts/domain/script.dart';
 
 void main() {
   test('GitHub URL keeps branch and script path intact', () {
-    final uri = GitHub(
-      'owner/repo',
-      'feature/scripts',
-      'scripts',
+    final uri = GitHubScriptRepository(
+      const GitHubConfig(repository: 'owner/repo', branch: 'feature/scripts'),
     ).uri('scripts/click button.js');
     expect(uri.host, 'api.github.com');
     expect(
@@ -17,7 +16,9 @@ void main() {
   });
   test('Invalid repository input is rejected', () {
     expect(
-      () => GitHub('https://github.com/owner/repo', 'main', '').uri(''),
+      () => GitHubScriptRepository(
+        const GitHubConfig(repository: 'https://github.com/owner/repo'),
+      ).uri(''),
       throwsFormatException,
     );
   });

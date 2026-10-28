@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
+import '../domain/script.dart';
+import '../domain/script_repository.dart';
 
-class GitHub {
-  GitHub(this.repository, this.branch, this.folder);
-  final String repository, branch, folder;
+class GitHubScriptRepository implements ScriptRepository {
+  GitHubScriptRepository(this.config);
+  final GitHubConfig config;
 
   Uri uri(String path) {
-    final parts = repository.trim().split('/');
+    final parts = config.repository.trim().split('/');
     if (parts.length != 2 ||
         parts.any((p) => !RegExp(r'^[\w.-]+$').hasMatch(p))) {
       throw const FormatException('اكتب المستودع بالشكل owner/repo');
@@ -14,7 +16,7 @@ class GitHub {
     return Uri.https(
       'api.github.com',
       '/repos/${parts[0]}/${parts[1]}/contents/$path',
-      {'ref': branch},
+      {'ref': config.branch},
     );
   }
 
@@ -33,8 +35,9 @@ class GitHub {
           .join()
           .timeout(const Duration(seconds: 20));
       if (response.statusCode != 200) {
-        throw HttpException(
+        throw ScriptRepositoryException(
           'GitHub ${response.statusCode}: تأكد من المستودع العام والفرع والمجلد، أو حاول لاحقًا',
+          statusCode: response.statusCode,
         );
       }
       return jsonDecode(body);
@@ -43,17 +46,29 @@ class GitHub {
     }
   }
 
-  Future<List<Map<String, dynamic>>> list() async {
-    final data = await read(folder.trim().replaceAll(RegExp(r'^/+|/+$'), ''));
+  @override
+  Future<List<ScriptFile>> list() async {
+    final data = await read(
+      config.folder.trim().replaceAll(RegExp(r'^/+|/+$'), ''),
+    );
     if (data is! List) throw const FormatException('المسار يجب أن يكون مجلدًا');
     return data
         .whereType<Map<String, dynamic>>()
         .where(
-          (e) => e['type'] == 'file' && (e['name'] as String).endsWith('.js'),
+          (e) =>
+              e['type'] == 'file' &&
+              e['name'] is String &&
+              (e['name'] as String).endsWith('.js') &&
+              e['path'] is String,
+        )
+        .map(
+          (e) =>
+              ScriptFile(name: e['name'] as String, path: e['path'] as String),
         )
         .toList();
   }
 
+  @override
   Future<String> source(String path) async {
     final data = await read(path);
     if (data is! Map ||

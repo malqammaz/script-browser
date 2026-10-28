@@ -3,10 +3,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'ad_blocker.dart';
+import '../../protection/domain/ad_blocker.dart';
+import '../domain/browser_engine.dart';
+import 'home_page.dart';
 
 /// Keeps the script editor independent of the Android WebView implementation.
-class BrowserWeb {
+class BrowserWeb implements BrowserEngine {
   BrowserWeb({
     required this.blocker,
     required this.onStarted,
@@ -20,6 +22,7 @@ class BrowserWeb {
   final void Function(int) onProgress;
   final VoidCallback onBlocked;
   InAppWebViewController? controller;
+  @override
   String pageUrl = 'about:blank';
 
   InAppWebViewSettings get settings => InAppWebViewSettings(
@@ -31,20 +34,26 @@ class BrowserWeb {
     mediaPlaybackRequiresUserGesture: true,
   );
 
+  @override
   Future<void> loadRequest(Uri uri) async {
     pageUrl = uri.toString();
     await updateProtection();
     await controller?.loadUrl(urlRequest: URLRequest(url: WebUri.uri(uri)));
   }
 
+  @override
   Future<void> reload() async => controller?.reload();
+  @override
   Future<bool> canGoBack() async => await controller?.canGoBack() ?? false;
+  @override
   Future<void> goBack() async => controller?.goBack();
+  @override
   Future<void> runJavaScript(String source) async {
     if (controller == null) throw StateError('المتصفح غير جاهز');
     await controller!.evaluateJavascript(source: source);
   }
 
+  @override
   Future<Object> runJavaScriptReturningResult(String source) async {
     if (controller == null) throw StateError('المتصفح غير جاهز');
     return await controller!.evaluateJavascript(source: source) ?? '';
@@ -57,6 +66,7 @@ class BrowserWeb {
     injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
   );
 
+  @override
   Future<void> updateProtection() async {
     await controller?.setSettings(settings: settings);
     await controller?.removeUserScriptsByGroupName(groupName: 'ad-protection');
@@ -70,10 +80,7 @@ class BrowserWeb {
     initialUserScripts: UnmodifiableListView(
       blocker.activeFor(pageUrl) ? [styleScript] : <UserScript>[],
     ),
-    initialData: InAppWebViewInitialData(
-      data:
-          '''<!doctype html><html lang="ar" dir="rtl"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font:20px sans-serif;background:#f3f8f6;padding:32px;color:#163d34}button{background:#146c60;color:white;border:0;padding:20px;border-radius:12px;font-size:20px}</style><h1>متصفح السكربتات</h1><p>افتح موقعًا من شريط العنوان، أو جرّب تشغيل السكربت على هذا الزر.</p><button onclick="this.textContent='تم الضغط بنجاح ✓'">زر تجريبي</button></html>''',
-    ),
+    initialData: InAppWebViewInitialData(data: homePageHtml),
     onWebViewCreated: (value) async {
       controller = value;
       await updateProtection();
