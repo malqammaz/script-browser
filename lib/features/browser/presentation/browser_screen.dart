@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../application/tv_cast.dart';
+import 'cast_dialog.dart';
 import '../../scripts/application/anime_library_sync.dart';
 import '../../../core/storage/settings_store.dart';
 import '../../protection/presentation/protection_dialog.dart';
@@ -34,6 +36,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
   static const tokenKey = 'anime_library_github_token';
   final secureStorage = const FlutterSecureStorage();
   final librarySync = AnimeLibrarySync();
+  final tvCast = TvCast();
 
   @override
   void initState() {
@@ -223,6 +226,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
   @override
   void dispose() {
+    tvCast.close();
     session.removeListener(onSessionChanged);
     session.dispose();
     address.dispose();
@@ -234,6 +238,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
     appBar: AppBar(
       title: const Text('متصفح السكربتات'),
       actions: [
+        IconButton(
+          tooltip: 'بث إلى التلفزيون',
+          onPressed: () => showDialog<void>(
+            context: context,
+            builder: (_) => CastDialog(web: web, cast: tvCast),
+          ),
+          icon: const Icon(Icons.cast),
+        ),
         IconButton(
           tooltip: 'مزامنة مكتبة الأنمي',
           onPressed: session.running

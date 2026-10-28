@@ -22,6 +22,41 @@ class BrowserWeb implements BrowserEngine {
   final void Function(int) onProgress;
   final VoidCallback onBlocked;
   InAppWebViewController? controller;
+  final mediaRequests = <String, Map<String, String>>{};
+  void rememberMedia(String url, [Map<String, String> headers = const {}]) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !['http', 'https'].contains(uri.scheme)) return;
+    if (!RegExp(r'\.(mp4|m3u8)(?:$|[?])', caseSensitive: false).hasMatch(url))
+      return;
+    if (blocker.blocks(url, pageUrl)) return;
+    if (mediaRequests.length < 60 &&
+        (headers.isNotEmpty || !mediaRequests.containsKey(url)))
+      mediaRequests[url] = Map.of(headers);
+  }
+
+  Future<void> detectMedia() async {
+    final raw = await controller?.evaluateJavascript(
+      source: '''JSON.stringify([
+      ...Array.from(document.querySelectorAll('video,video source')).map(v=>v.currentSrc||v.src),
+      ...performance.getEntriesByType('resource').map(r=>r.name)
+    ].filter(Boolean))''',
+    );
+    if (raw is String) {
+      final list = jsonDecode(raw);
+      if (list is List)
+        for (final url in list) {
+          if (url is String) rememberMedia(url);
+        }
+    }
+  }
+
+  Future<String> mediaCookies(Uri url) async {
+    final cookies = await CookieManager.instance().getCookies(
+      url: WebUri.uri(url),
+    );
+    return cookies.map((c) => '${c.name}=${c.value}').join('; ');
+  }
+
   @override
   String pageUrl = 'about:blank';
 
@@ -86,6 +121,7 @@ class BrowserWeb implements BrowserEngine {
       await updateProtection();
     },
     onLoadStart: (c, url) async {
+      mediaRequests.clear();
       pageUrl = url?.toString() ?? 'about:blank';
       onStarted(pageUrl);
       await updateProtection();
@@ -113,6 +149,7 @@ class BrowserWeb implements BrowserEngine {
       return NavigationActionPolicy.ALLOW;
     },
     shouldInterceptRequest: (c, request) async {
+      rememberMedia(request.url.toString(), request.headers ?? const {});
       if (!blocker.blocks(request.url.toString(), pageUrl)) return null;
       onBlocked();
       return WebResourceResponse(
