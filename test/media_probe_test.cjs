@@ -1,0 +1,11 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const source=fs.readFileSync('lib/features/browser/infrastructure/media_probe_script.dart','utf8').match(/r'''([\s\S]*?)'''/)[1];
+const calls=[],queue=[],handlers={};let changed;
+const video={currentSrc:'https://cdn.example/opaque~signed?token=abc',src:'',addEventListener:(n,f)=>handlers[n]=f};
+const context={document:{querySelectorAll:()=>[video]},location:{href:'https://player.example/e/123'},navigator:{userAgent:'Test phone'},URL,WeakSet,Set,setTimeout:f=>queue.push(f),MutationObserver:class{constructor(f){changed=f;}observe(){}},window:{addEventListener:()=>{},flutter_inappwebview:{callHandler:(name,data)=>{calls.push({name,data});return Promise.resolve();}}}};
+vm.runInNewContext(source,context);queue.splice(0).forEach(f=>f());
+assert.equal(calls.length,1);assert.equal(calls[0].data.url,video.currentSrc);assert.equal(calls[0].data.page,'https://player.example/e/123');
+changed();queue.splice(0).forEach(f=>f());assert.equal(calls.length,1,'Deduplicates the same video source');
+video.currentSrc='https://cdn.example/new-source';handlers.loadedmetadata();queue.splice(0).forEach(f=>f());assert.equal(calls.length,2);
+video.currentSrc='blob:https://player.example/local';changed();queue.splice(0).forEach(f=>f());assert.equal(calls.length,2,'Does not send non-network blob URLs to the relay');
+console.log('Frame media probe tests passed');

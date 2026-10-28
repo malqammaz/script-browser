@@ -1,7 +1,12 @@
 /// Accept video URLs, including Drive preview playback; never Drive downloads.
-Uri? castableMedia(String value) {
+Uri? castableMedia(String value, {bool fromVideoElement = false}) {
   final uri = Uri.tryParse(value);
-  if (uri == null || !['http', 'https'].contains(uri.scheme)) return null;
+  if (uri == null ||
+      !['http', 'https'].contains(uri.scheme) ||
+      uri.host.isEmpty) {
+    return null;
+  }
+  if (fromVideoElement) return uri;
   if (RegExp(r'\.(mp4|m3u8)$', caseSensitive: false).hasMatch(uri.path)) {
     return uri;
   }

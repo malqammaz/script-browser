@@ -6,6 +6,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import '../../protection/domain/ad_blocker.dart';
 import '../domain/browser_engine.dart';
 import '../application/media_source.dart';
+import 'media_probe_script.dart';
 
 /// Keeps the script editor independent of the Android WebView implementation.
 class BrowserWeb implements BrowserEngine {
@@ -26,8 +27,12 @@ class BrowserWeb implements BrowserEngine {
   InAppWebViewController? controller;
   Uri? _pendingNavigation;
   final mediaRequests = <String, Map<String, String>>{};
-  void rememberMedia(String url, [Map<String, String> headers = const {}]) {
-    final uri = castableMedia(url);
+  void rememberMedia(
+    String url, [
+    Map<String, String> headers = const {},
+    bool fromVideoElement = false,
+  ]) {
+    final uri = castableMedia(url, fromVideoElement: fromVideoElement);
     if (uri == null) return;
     if (publicDrivePreview(Uri.parse(pageUrl)) != null &&
         isDrivePreviewMedia(uri)) {
@@ -148,11 +153,39 @@ class BrowserWeb implements BrowserEngine {
 
   Widget view() => InAppWebView(
     initialSettings: settings,
-    initialUserScripts: UnmodifiableListView(
-      blocker.activeFor(pageUrl) ? [styleScript] : <UserScript>[],
-    ),
+    initialUserScripts: UnmodifiableListView([
+      UserScript(
+        groupName: 'media-probe',
+        source: mediaProbeScript,
+        injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+        forMainFrameOnly: false,
+      ),
+      if (blocker.activeFor(pageUrl)) styleScript,
+    ]),
     onWebViewCreated: (value) async {
       controller = value;
+      value.addJavaScriptHandler(
+        handlerName: 'mediaDetected',
+        callback: (arguments) {
+          if (arguments.isEmpty || arguments.first is! Map) return null;
+          final data = arguments.first as Map;
+          final url = data['url'];
+          final page = Uri.tryParse(data['page'] is String ? data['page'] : '');
+          if (url is! String ||
+              url.length > 16384 ||
+              page == null ||
+              !['http', 'https'].contains(page.scheme) ||
+              page.host.isEmpty) {
+            return null;
+          }
+          final agent = data['userAgent'];
+          rememberMedia(url, {
+            'Referer': '$page',
+            if (agent is String && agent.length < 2048) 'User-Agent': agent,
+          }, true);
+          return null;
+        },
+      );
       await updateProtection();
       if (_pendingNavigation case final uri?) {
         await value.loadUrl(urlRequest: URLRequest(url: WebUri.uri(uri)));

@@ -2,6 +2,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:script_browser/features/browser/application/media_source.dart';
 
 void main() {
+  test('Extensionless URLs require an actual video element', () {
+    const url = 'https://cdn.example/opaque/token~abc?token=signed&expiry=123';
+    expect(castableMedia(url), isNull);
+    expect(castableMedia(url, fromVideoElement: true).toString(), url);
+    expect(
+      castableMedia('blob:https://example.com/123', fromVideoElement: true),
+      isNull,
+    );
+    expect(
+      castableMedia('javascript:alert(1)', fromVideoElement: true),
+      isNull,
+    );
+  });
   test(
     'Only embeds public Drive preview pages, never download or external URLs',
     () {

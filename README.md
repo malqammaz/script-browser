@@ -160,3 +160,11 @@ Validation for this revision: 52 automated tests passed; flutter analyze reporte
 A live LG session stalled at 12:26.7 after seeking despite approximately 47 MiB in the phone cache, HTTP 200 from the source, and no recorded relay error. Those observations do not establish the decoder's root cause. The TV receiver now reports seeking/buffering separately from playing and reports backward seeks correctly. If playback makes no progress for 15 seconds while unpaused, it attempts one reload at the same time. A visible Retry playback button allows an explicit further attempt. This avoids an unbounded automatic reload loop and does not change upstream rate-limit handling. Google Drive's embedded player is unchanged.
 
 Run `node test/receiver_player_test.cjs` to verify the receiver's recovery limit, position preservation, backward-seek reporting, and progress handling with a simulated video element. Real LG playback still requires a manual TV test after updating and reloading the receiver page.
+
+## Embedded and extensionless videos (1.6.2)
+
+Live diagnosis found Yalanime's Dood FHD player in a cross-origin iframe redirecting from dood.to to playmogo.com. Its active video source was an HTTPS CDN URL without an MP4/M3U8 extension. The previous top-page/extension detector missed it.
+
+A small script now observes video elements in every frame. It reports an actual network currentSrc/src, the frame's referrer, and user agent to the native media catalog. Sources are deduplicated, and source changes are observed. Extensionless arbitrary resource requests are still excluded; blob/data/javascript URLs are not castable. This does not bypass DRM, login, host restrictions, or expired links. Some hosts may still reject TV playback even when detected successfully. Installing the update requires reloading the site so the frame observer is injected.
+
+Run `node test/media_probe_test.cjs` for extensionless video reporting, per-frame referrer, deduplication, source changes, and blob rejection. Dart media-source tests cover explicit video evidence and URL filtering.
