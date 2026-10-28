@@ -164,6 +164,16 @@ class AnimeLibrarySync {
     }
     show ??= {'title': title, 'episodes': <dynamic>[]};
     if (!shows.contains(show)) shows.add(show);
+    final image = incoming['image'];
+    if (image is String && image.isNotEmpty) {
+      final uri = Uri.tryParse(image);
+      if (uri == null ||
+          !['http', 'https'].contains(uri.scheme) ||
+          uri.host.isEmpty) {
+        throw const FormatException('رابط صورة غير صالح.');
+      }
+      show['image'] = uri.toString();
+    }
     if (show['episodes'] is! List) {
       throw const FormatException('قائمة الحلقات المخزنة غير صالحة.');
     }

@@ -5,6 +5,7 @@ import 'package:script_browser/features/scripts/application/anime_library_sync.d
 void main() {
   Map<String, dynamic> incoming() => {
     'title': 'انمي Overgeared',
+    'image': 'https://images.example/overgeared.jpg',
     'episodes': [
       {
         'number': 1,
@@ -37,6 +38,10 @@ void main() {
     final result = AnimeLibrarySync.merge(library, incoming());
     expect(result['added'], 0);
     expect(library['anime'].length, 2);
+    expect(
+      library['anime'][0]['image'],
+      'https://images.example/overgeared.jpg',
+    );
     final ep = library['anime'][0]['episodes'][0];
     expect(ep['title'], 'الحلقة 1');
     expect(ep['links'].length, 2);
@@ -49,6 +54,16 @@ void main() {
     expect(
       () => AnimeLibrarySync.merge({'anime': []}, data),
       throwsFormatException,
+    );
+  });
+  test('Preserves the cover when the next scrape has no image', () {
+    final library = <String, dynamic>{'anime': []};
+    AnimeLibrarySync.merge(library, incoming());
+    final next = incoming()..remove('image');
+    AnimeLibrarySync.merge(library, next);
+    expect(
+      library['anime'][0]['image'],
+      'https://images.example/overgeared.jpg',
     );
   });
   test('Missing credential never sends a request', () async {
