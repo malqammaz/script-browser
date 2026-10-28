@@ -7,6 +7,18 @@ class MemorySettingsStore implements SettingsStore {
   MemorySettingsStore([this.settings = const AppSettings()]);
   AppSettings settings;
   String? savedLastUrl;
+  List<String> recentSites = [];
+  List<String> bookmarks = [];
+  @override
+  Future<void> saveRecentSites(List<String> urls) async {
+    recentSites = List.of(urls);
+  }
+
+  @override
+  Future<void> saveBookmarks(List<String> urls) async {
+    bookmarks = List.of(urls);
+  }
+
   @override
   Future<void> saveLastUrl(String url) async {
     savedLastUrl = url;

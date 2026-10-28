@@ -40,6 +40,63 @@ class BrowserSession extends ChangeNotifier {
   bool busy = false;
   bool running = false;
   bool _disposed = false;
+  List<String> _recentSites = [];
+  List<String> _bookmarks = [];
+  Future<void> _siteWrites = Future.value();
+  List<String> get recentSites => List.unmodifiable(_recentSites);
+  List<String> get bookmarks => List.unmodifiable(_bookmarks);
+  static bool isWebsite(String value) {
+    final uri = Uri.tryParse(value);
+    return uri != null &&
+        ['http', 'https'].contains(uri.scheme) &&
+        uri.host.isNotEmpty &&
+        uri.userInfo.isEmpty;
+  }
+
+  bool get canBookmark => isWebsite(url);
+  bool isBookmarked(String value) => _bookmarks.contains(value);
+
+  Future<void> _writeSites(Future<void> Function() action) {
+    final next = _siteWrites.then((_) => action());
+    _siteWrites = next.catchError((Object _) {});
+    return next;
+  }
+
+  Future<void> toggleBookmark(String value) => _writeSites(() async {
+    if (!isWebsite(value)) return;
+    final updated = [..._bookmarks];
+    if (!updated.remove(value)) updated.insert(0, value);
+    await settingsStore.saveBookmarks(updated);
+    if (_disposed) return;
+    _bookmarks = updated;
+    _changed();
+  });
+
+  Future<void> removeRecent(String value) => _writeSites(() async {
+    final updated = [..._recentSites]..remove(value);
+    await settingsStore.saveRecentSites(updated);
+    if (_disposed) return;
+    _recentSites = updated;
+    _changed();
+  });
+
+  Future<void> clearRecentSites() => _writeSites(() async {
+    await settingsStore.saveRecentSites([]);
+    if (_disposed) return;
+    _recentSites = [];
+    _changed();
+  });
+
+  Future<void> _recordVisit(String value) => _writeSites(() async {
+    final updated = [
+      value,
+      ..._recentSites.where((site) => site != value),
+    ].take(100).toList();
+    await settingsStore.saveRecentSites(updated);
+    if (_disposed) return;
+    _recentSites = updated;
+    _changed();
+  });
   bool get canRun =>
       !running &&
       !busy &&
@@ -54,6 +111,12 @@ class BrowserSession extends ChangeNotifier {
     final settings = await settingsStore.load();
     if (_disposed) return;
     github = settings.github;
+    _recentSites = settings.recentSites
+        .where(isWebsite)
+        .toSet()
+        .take(100)
+        .toList();
+    _bookmarks = settings.bookmarks.where(isWebsite).toSet().toList();
     siteScripts.configure(github);
     siteScripts.setPage(url);
     script = settings.script;
@@ -90,6 +153,9 @@ class BrowserSession extends ChangeNotifier {
         ['http', 'https'].contains(uri.scheme) &&
         uri.host.isNotEmpty) {
       unawaited(settingsStore.saveLastUrl(value).catchError((Object _) {}));
+      if (isWebsite(value)) {
+        unawaited(_recordVisit(value).catchError((Object _) {}));
+      }
     }
     siteScripts.setPage(value);
     progress = 100;

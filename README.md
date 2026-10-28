@@ -257,3 +257,11 @@ The address bar groups Go with its input. The scripts dock retains its minimize 
 Validation: all 64 automated Flutter tests passed; static analysis reported no issues. New tests cover 320 dp width with 1.6x text and a simulated keyboard, manual-link errors, active-session Done behavior, and Android touch-target/label/contrast guideline smoke checks. These checks do not constitute a complete accessibility audit or a manual TalkBack test.
 
 Installed-phone visual review checked the system dark theme, browser toolbar, scripts dock, and full-screen TV selection/empty state. The TV was unavailable during this review; the video and connect steps were covered by widget tests. The review also removed a duplicate discovery empty-state message.
+
+## Recent sites and bookmarks (1.9.0)
+
+Open the browser menu (three dots) and select **Recent sites and bookmarks**. Recent sites records the latest 100 completed HTTP/HTTPS page loads, newest first, with duplicate URLs moved to the top. Search either tab by URL, tap a row to reopen it, use the bookmark icon to save/remove it, or remove an individual recent entry. **Bookmark this page** in the browser menu saves the current page. Bookmarks have no automatic eviction limit.
+
+All entries are stored locally in app preferences and survive app restarts/updates. No token, account, GitHub upload, or synchronization is required. Full URLs (including query strings and fragments) are retained to reopen the same page; invalid/non-web URLs and URLs containing embedded credentials are excluded. Labels show the host and URL; remote favicons are not fetched. Clearing recent sites asks for confirmation and preserves bookmarks and the existing last-opened-site setting. A later visit adds a cleared site again. Uninstalling or clearing app data removes this local library.
+
+Validation: all 67 Flutter tests passed and static analysis reported no issues. Tests cover persistent history/bookmark reloads, deduplication and the 100-entry history limit, concurrent bookmark changes, URL validation, clearing history independently of bookmarks, and searching/saving/reopening through the UI.

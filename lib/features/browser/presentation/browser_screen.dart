@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../application/tv_cast.dart';
 import 'cast_dialog.dart';
+import 'saved_sites_dialog.dart';
 import '../../scripts/application/anime_library_sync.dart';
 import '../../../core/storage/settings_store.dart';
 import '../../protection/presentation/protection_dialog.dart';
@@ -272,6 +273,20 @@ class _BrowserScreenState extends State<BrowserScreen> {
           tooltip: 'Settings and tools',
           onSelected: (value) => handle(() async {
             switch (value) {
+              case 'sites':
+                final chosen = await showDialog<String>(
+                  context: context,
+                  builder: (_) => SavedSitesDialog(session: session),
+                );
+                if (chosen != null && mounted) await session.open(chosen);
+              case 'bookmark':
+                final current = session.url;
+                await session.toggleBookmark(current);
+                notice(
+                  session.isBookmarked(current)
+                      ? 'Bookmark saved'
+                      : 'Bookmark removed',
+                );
               case 'sync':
                 await configureLibrarySync();
               case 'github':
@@ -281,6 +296,20 @@ class _BrowserScreenState extends State<BrowserScreen> {
             }
           }),
           itemBuilder: (_) => [
+            const PopupMenuItem(
+              value: 'sites',
+              child: Text('Recent sites and bookmarks'),
+            ),
+            PopupMenuItem(
+              value: 'bookmark',
+              enabled: session.canBookmark,
+              child: Text(
+                session.isBookmarked(session.url)
+                    ? 'Remove bookmark'
+                    : 'Bookmark this page',
+              ),
+            ),
+            const PopupMenuDivider(),
             PopupMenuItem(
               value: 'sync',
               enabled: !session.running,

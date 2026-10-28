@@ -8,6 +8,8 @@ class AppSettings {
     this.lastUrl = 'https://www.google.com/',
     this.allowedSites = const {},
     this.customDomains = const {},
+    this.recentSites = const [],
+    this.bookmarks = const [],
   });
   final GitHubConfig github;
   final String lastUrl;
@@ -15,11 +17,15 @@ class AppSettings {
   final bool adBlockEnabled;
   final Set<String> allowedSites;
   final Set<String> customDomains;
+  final List<String> recentSites;
+  final List<String> bookmarks;
 }
 
 abstract interface class SettingsStore {
   Future<AppSettings> load();
   Future<void> saveLastUrl(String url);
+  Future<void> saveRecentSites(List<String> urls);
+  Future<void> saveBookmarks(List<String> urls);
   Future<void> saveGitHub(GitHubConfig config);
   Future<void> saveScript(ScriptDocument document);
   Future<void> saveProtection({

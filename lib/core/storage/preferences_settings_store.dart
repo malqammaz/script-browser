@@ -14,6 +14,8 @@ class PreferencesSettingsStore implements SettingsStore {
   @override
   Future<AppSettings> load() async => AppSettings(
     lastUrl: preferences.getString('lastUrl') ?? 'https://www.google.com/',
+    recentSites: preferences.getStringList('recentSites') ?? [],
+    bookmarks: preferences.getStringList('bookmarks') ?? [],
     github: GitHubConfig(
       repository: preferences.getString('repo') ?? defaultGitHub.repository,
       branch: preferences.getString('branch') ?? defaultGitHub.branch,
@@ -30,6 +32,20 @@ class PreferencesSettingsStore implements SettingsStore {
     customDomains: (preferences.getStringList('adBlockCustomDomains') ?? [])
         .toSet(),
   );
+
+  @override
+  Future<void> saveRecentSites(List<String> urls) async {
+    if (!await preferences.setStringList('recentSites', urls)) {
+      throw StateError('Could not save recent sites');
+    }
+  }
+
+  @override
+  Future<void> saveBookmarks(List<String> urls) async {
+    if (!await preferences.setStringList('bookmarks', urls)) {
+      throw StateError('Could not save bookmarks');
+    }
+  }
 
   @override
   Future<void> saveLastUrl(String url) async {
