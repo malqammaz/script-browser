@@ -293,8 +293,9 @@ class BrowserSession extends ChangeNotifier {
     result = 'Running…';
     _changed();
     final initialNavigation = _navigation;
+    final batchRequested = script.name == 'sync-all-anime-library.js';
     final syncRequested =
-        script.name == 'sync-anime-library.js' &&
+        (script.name == 'sync-anime-library.js' || batchRequested) &&
         script.domain == 'yalanime.com' &&
         ['yalanime.com', 'www.yalanime.com'].contains(Uri.tryParse(url)?.host);
     try {
@@ -303,6 +304,9 @@ class BrowserSession extends ChangeNotifier {
         source: script.source,
         isCancelled: () => _disposed,
         navigationChanged: () => _navigation != initialNavigation,
+        timeoutOverride: syncRequested && batchRequested
+            ? const Duration(hours: 2)
+            : null,
       );
       if (!_disposed) {
         result = output;
@@ -312,7 +316,10 @@ class BrowserSession extends ChangeNotifier {
           try {
             final data = jsonDecode(output);
             if (data is Map<String, dynamic> &&
-                data['action'] == 'syncAnimeLibrary') {
+                data['action'] ==
+                    (batchRequested
+                        ? 'syncAnimeLibraryBatch'
+                        : 'syncAnimeLibrary')) {
               result = 'Extraction complete; updating the GitHub library…';
               _changed();
               final status = await syncLibrary!(data);

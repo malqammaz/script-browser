@@ -98,6 +98,36 @@ void main() {
     );
     await expectLater(sync.sync(incoming(), ''), throwsStateError);
   });
+  test('Batch merges multiple shows while preserving unrelated anime', () {
+    final library = <String, dynamic>{
+      'anime': [
+        {'title': 'Unrelated', 'episodes': []},
+      ],
+    };
+    final result = AnimeLibrarySync.mergeIncoming(library, {
+      'action': 'syncAnimeLibraryBatch',
+      'anime': [incoming(), incoming()..['title'] = 'Second'],
+    });
+    expect(result['shows'], 2);
+    expect(result['added'], 2);
+    expect(library['anime'].length, 3);
+    expect(library['anime'][0]['title'], 'Unrelated');
+    expect(
+      library['anime'][1]['animeUrl'],
+      'https://yalanime.com/anime/overgeared/',
+    );
+  });
+  test('Invalid batch does not partially modify the library', () {
+    final library = <String, dynamic>{'anime': []};
+    expect(
+      () => AnimeLibrarySync.mergeIncoming(library, {
+        'action': 'syncAnimeLibraryBatch',
+        'anime': [incoming(), {'title': 'Invalid'}],
+      }),
+      throwsFormatException,
+    );
+    expect(library['anime'], isEmpty);
+  });
   test(
     'Retries conflicts with latest SHA and keeps token out of output',
     () async {

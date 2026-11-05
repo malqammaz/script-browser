@@ -15,6 +15,7 @@ class ScriptRunner {
     required String source,
     required bool Function() isCancelled,
     required bool Function() navigationChanged,
+    Duration? timeoutOverride,
   }) async {
     final key = jsonEncode(
       '__scriptBrowser_${DateTime.now().microsecondsSinceEpoch}',
@@ -37,7 +38,8 @@ class ScriptRunner {
           } catch(e) { complete({ok:false,error:String(e)}); }
         })();
       })();''');
-      final deadline = DateTime.now().add(timeout);
+      final effectiveTimeout = timeoutOverride ?? timeout;
+      final deadline = DateTime.now().add(effectiveTimeout);
       while (!isCancelled() && DateTime.now().isBefore(deadline)) {
         await Future<void>.delayed(pollInterval);
         if (isCancelled()) return '';
@@ -51,7 +53,7 @@ class ScriptRunner {
         if (response != null) return response;
       }
       if (isCancelled()) return '';
-      return 'No result after ${timeout.inSeconds} seconds. The script may still be running; reload the page to stop it.';
+      return 'No result after ${effectiveTimeout.inSeconds} seconds. The script may still be running; reload the page to stop it.';
     } catch (error) {
       return 'Could not run script: $error';
     } finally {

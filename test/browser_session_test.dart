@@ -45,9 +45,26 @@ void main() {
       await session.run();
       expect(uploads, 1);
       expect(session.result, contains('"success": true'));
+      session.script = const ScriptDocument(
+        name: 'sync-all-anime-library.js',
+        source: 'return {};',
+        domain: 'yalanime.com',
+      );
+      engine.output = jsonEncode({
+        'ok': true,
+        'value': {'action': 'syncAnimeLibraryBatch', 'anime': []},
+      });
+      await session.run();
+      expect(uploads, 2);
+      engine.output = jsonEncode({
+        'ok': true,
+        'value': {'action': 'syncAnimeLibrary', 'episodes': []},
+      });
+      await session.run();
+      expect(uploads, 2);
       session.pageFinished('https://other.example/');
       await session.run();
-      expect(uploads, 1);
+      expect(uploads, 2);
       session.dispose();
     },
   );

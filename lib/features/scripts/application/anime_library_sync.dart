@@ -84,13 +84,15 @@ class AnimeLibrarySync {
             as Map,
       );
       final before = jsonEncode(library);
-      final counts = merge(library, incoming);
+      final counts = mergeIncoming(library, incoming);
       if (jsonEncode(library) == before) {
         return {'success': true, 'unchanged': true, ...counts};
       }
       try {
         final saved = await request('PUT', token, {
-          'message': 'Update anime library: ${incoming['title']}',
+          'message': incoming['action'] == 'syncAnimeLibraryBatch'
+              ? 'Sync anime library (${counts['shows']} anime)'
+              : 'Update anime library: ${incoming['title']}',
           'branch': branch,
           'sha': file['sha'],
           'content': base64Encode(
@@ -109,6 +111,38 @@ class AnimeLibrarySync {
       }
     }
     throw const LibraryConflict();
+  }
+
+  static Map<String, int> mergeIncoming(
+    Map<String, dynamic> library,
+    Map<String, dynamic> incoming,
+  ) {
+    if (incoming['action'] != 'syncAnimeLibraryBatch') {
+      return merge(library, incoming);
+    }
+    final shows = incoming['anime'];
+    if (shows is! List || shows.length > 1000) {
+      throw const FormatException('Invalid anime batch.');
+    }
+    // Stage the entire batch so invalid input cannot leave a partial merge.
+    final staged = Map<String, dynamic>.from(
+      jsonDecode(jsonEncode(library)) as Map,
+    );
+    final counts = {'shows': 0, 'added': 0, 'updated': 0, 'skipped': 0};
+    for (final show in shows) {
+      if (show is! Map<String, dynamic>) {
+        throw const FormatException('Invalid anime batch entry.');
+      }
+      final result = merge(staged, show);
+      counts['shows'] = counts['shows']! + 1;
+      for (final key in ['added', 'updated', 'skipped']) {
+        counts[key] = counts[key]! + result[key]!;
+      }
+    }
+    library
+      ..clear()
+      ..addAll(staged);
+    return counts;
   }
 
   static Map<String, int> merge(
