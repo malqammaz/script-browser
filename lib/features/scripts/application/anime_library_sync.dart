@@ -187,8 +187,26 @@ class AnimeLibrarySync {
     final shows = List<dynamic>.from(library['anime'] as List);
     library['anime'] = shows;
     Map? show;
+    String? pageKey(Object? value) {
+      if (value is! String) return null;
+      final uri = Uri.tryParse(value);
+      if (uri == null ||
+          !['http', 'https'].contains(uri.scheme) ||
+          uri.host.isEmpty) {
+        return null;
+      }
+      try {
+        return '${uri.host.toLowerCase()}:${uri.port}${Uri.decodeComponent(uri.path).replaceFirst(RegExp(r'/+$'), '')}';
+      } on FormatException {
+        return null;
+      }
+    }
+
+    final incomingPage = pageKey(rawAnimeUrl);
     for (final a in shows) {
-      if (a is Map && titleKey(a['title']) == titleKey(title)) {
+      if (a is Map &&
+          ((incomingPage != null && pageKey(a['animeUrl']) == incomingPage) ||
+              titleKey(a['title']) == titleKey(title))) {
         show = a;
         break;
       }
@@ -210,6 +228,10 @@ class AnimeLibrarySync {
     }
     show ??= {'title': title, 'episodes': <dynamic>[]};
     if (!shows.contains(show)) shows.add(show);
+    if (show['title'] is! String || (show['title'] as String).trim().isEmpty) {
+      show['title'] = title;
+    }
+    if (!show.containsKey('episodes')) show['episodes'] = <dynamic>[];
     if (animeUrl != null) show['animeUrl'] = animeUrl.toString();
     final image = incoming['image'];
     if (image is String && image.isNotEmpty) {

@@ -99,6 +99,24 @@ void main() {
     );
     await expectLater(sync.sync(incoming(), ''), throwsStateError);
   });
+  test('Fills a URL-only entry without creating a duplicate anime', () {
+    final library = <String, dynamic>{
+      'anime': [
+        {'animeUrl': 'https://yalanime.com/anime/overgeared/'},
+      ],
+    };
+    AnimeLibrarySync.mergeIncoming(library, {
+      'action': 'syncAnimeLibraryBatch',
+      'anime': [incoming()],
+    });
+    expect(library['anime'].length, 1);
+    expect(library['anime'][0]['title'], 'Overgeared');
+    expect(library['anime'][0]['episodes'].length, 1);
+    expect(
+      library['anime'][0]['image'],
+      'https://images.example/overgeared.jpg',
+    );
+  });
   test('Batch merges multiple shows while preserving unrelated anime', () {
     final library = <String, dynamic>{
       'anime': [
