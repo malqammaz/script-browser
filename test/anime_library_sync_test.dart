@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:script_browser/features/scripts/application/anime_library_sync.dart';
 
@@ -122,7 +123,10 @@ void main() {
     expect(
       () => AnimeLibrarySync.mergeIncoming(library, {
         'action': 'syncAnimeLibraryBatch',
-        'anime': [incoming(), {'title': 'Invalid'}],
+        'anime': [
+          incoming(),
+          {'title': 'Invalid'},
+        ],
       }),
       throwsFormatException,
     );
