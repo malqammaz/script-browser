@@ -125,7 +125,12 @@ void main() {
     };
     final result = AnimeLibrarySync.mergeIncoming(library, {
       'action': 'syncAnimeLibraryBatch',
-      'anime': [incoming(), incoming()..['title'] = 'Second'],
+      'anime': [
+        incoming(),
+        incoming()
+          ..['title'] = 'Second'
+          ..['animeUrl'] = 'https://yalanime.com/anime/second/',
+      ],
     });
     expect(result['shows'], 2);
     expect(result['added'], 2);
