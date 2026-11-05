@@ -5,6 +5,7 @@ import 'package:script_browser/features/scripts/application/anime_library_sync.d
 void main() {
   Map<String, dynamic> incoming() => {
     'title': 'انمي Overgeared',
+    'animeUrl': 'https://yalanime.com/anime/overgeared/',
     'image': 'https://images.example/overgeared.jpg',
     'episodes': [
       {
@@ -56,6 +57,31 @@ void main() {
       throwsFormatException,
     );
   });
+  test('Saves anime page URL and preserves it when older scripts omit it', () {
+    final library = <String, dynamic>{'anime': []};
+    AnimeLibrarySync.merge(library, incoming());
+    expect(
+      library['anime'][0]['animeUrl'],
+      'https://yalanime.com/anime/overgeared/',
+    );
+    final next = incoming()..remove('animeUrl');
+    AnimeLibrarySync.merge(library, next);
+    expect(
+      library['anime'][0]['animeUrl'],
+      'https://yalanime.com/anime/overgeared/',
+    );
+  });
+  test('Rejects invalid anime page URLs without changing the library', () {
+    for (final url in ['javascript:alert(1)', '/anime/test/', '', null, 123]) {
+      final library = <String, dynamic>{'anime': []};
+      final data = incoming()..['animeUrl'] = url;
+      expect(
+        () => AnimeLibrarySync.merge(library, data),
+        throwsFormatException,
+      );
+      expect(library['anime'], isEmpty);
+    }
+  });
   test('Preserves the cover when the next scrape has no image', () {
     final library = <String, dynamic>{'anime': []};
     AnimeLibrarySync.merge(library, incoming());
@@ -95,6 +121,10 @@ void main() {
             utf8.decode(base64Decode(body['content'] as String)),
           );
           expect(saved['anime'][0]['title'], 'Overgeared');
+          expect(
+            saved['anime'][0]['animeUrl'],
+            'https://yalanime.com/anime/overgeared/',
+          );
           return {
             'content': {'html_url': 'https://github.com/example/library.json'},
           };

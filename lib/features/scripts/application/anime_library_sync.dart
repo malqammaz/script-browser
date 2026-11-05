@@ -123,6 +123,16 @@ class AnimeLibrarySync {
         library['anime'] is! List) {
       throw const FormatException('Invalid anime data.');
     }
+    final rawAnimeUrl = incoming['animeUrl'];
+    Uri? animeUrl;
+    if (incoming.containsKey('animeUrl')) {
+      animeUrl = rawAnimeUrl is String ? Uri.tryParse(rawAnimeUrl) : null;
+      if (animeUrl == null ||
+          !['http', 'https'].contains(animeUrl.scheme) ||
+          animeUrl.host.isEmpty) {
+        throw const FormatException('Invalid anime page URL.');
+      }
+    }
     final title = rawTitle.trim().replaceFirst(RegExp(r'^[اأإ]نمي\s+'), '');
     String titleKey(Object? value) => '$value'
         .trim()
@@ -166,6 +176,7 @@ class AnimeLibrarySync {
     }
     show ??= {'title': title, 'episodes': <dynamic>[]};
     if (!shows.contains(show)) shows.add(show);
+    if (animeUrl != null) show['animeUrl'] = animeUrl.toString();
     final image = incoming['image'];
     if (image is String && image.isNotEmpty) {
       final uri = Uri.tryParse(image);
