@@ -5,6 +5,7 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'media_source.dart';
+import 'media_network_policy.dart';
 import 'ram_media_buffer.dart';
 import 'receiver_player_script.dart';
 
@@ -35,6 +36,7 @@ class MediaRelay {
   MediaRelay({
     required this.cookies,
     this.sourceIsHls = false,
+    this.trustedLocalOrigin,
     this.loadPlayerScript = _loadBundledHls,
     this.headers = const {},
     int bufferBytes = 128 * 1024 * 1024,
@@ -42,6 +44,7 @@ class MediaRelay {
     this.prefetchSeconds = 120,
     this.prefetchDelay = const Duration(milliseconds: 250),
   }) : buffer = RamMediaBuffer(capacity: bufferBytes);
+  final Uri? trustedLocalOrigin;
   bool sourceIsHls;
   final _hlsUrls = <Uri>{};
   final RamMediaBuffer buffer;
@@ -70,6 +73,26 @@ class MediaRelay {
     String peer, {
     int port = 0,
   }) async {
+    _client.findProxy = (_) => 'DIRECT';
+    _client.connectionFactory = (uri, proxyHost, proxyPort) async {
+      final literal = InternetAddress.tryParse(uri.host);
+      final local =
+          trustedLocalOrigin?.origin == uri.origin &&
+          literal != null &&
+          (MediaNetworkPolicy.isLan(literal) || literal.isLoopback);
+      final addresses = await InternetAddress.lookup(
+        uri.host,
+      ).timeout(const Duration(seconds: 15));
+      final allowed = addresses.where(
+        (ip) =>
+            MediaNetworkPolicy.isPublic(ip) ||
+            (local && (MediaNetworkPolicy.isLan(ip) || ip.isLoopback)),
+      );
+      if (allowed.isEmpty || (uri.scheme != 'https' && !local)) {
+        throw const FormatException('Blocked media destination.');
+      }
+      return Socket.startConnect(allowed.first, uri.port);
+    };
     _peer = peer;
     _secret = List.generate(
       24,
@@ -85,6 +108,9 @@ class MediaRelay {
   }
 
   Uri register(Uri uri, {bool isHls = false}) {
+    if (_ids.length >= 20000 && !_ids.containsKey(uri)) {
+      throw const FormatException('Too many resources in this cast session.');
+    }
     if (isHls || uri.path.toLowerCase().endsWith('.m3u8')) {
       _hlsUrls.add(uri);
     }
@@ -100,10 +126,11 @@ class MediaRelay {
   }
 
   String rewritePlaylist(String text, Uri original) {
+    final lines = const LineSplitter().convert(text);
+    if (lines.length > 20000) throw const FormatException('Playlist too long.');
     _configureBuffer(text, original);
     bool nextIsPlaylist = false;
-    return text
-        .split('\n')
+    return lines
         .map((line) {
           if (line.trim().isEmpty) return line;
           if (line.trimLeft().startsWith('#')) {
@@ -192,19 +219,29 @@ class MediaRelay {
     String? range,
   }) async {
     for (var redirect = 0; redirect < 6; redirect++) {
+      if (uri.userInfo.isNotEmpty ||
+          uri.host.isEmpty ||
+          !['http', 'https'].contains(uri.scheme)) {
+        throw const FormatException('Invalid media destination.');
+      }
       final req = await _client.openUrl(method, uri);
       req.followRedirects = false;
       for (final entry in headers.entries) {
-        if ([
-          'user-agent',
-          'referer',
-          'origin',
-        ].contains(entry.key.toLowerCase())) {
-          req.headers.set(entry.key, entry.value);
+        final name = entry.key.toLowerCase();
+        if (name == 'user-agent') req.headers.set(name, entry.value);
+        if (uri.scheme == 'https' &&
+            uri.origin == _original?.origin &&
+            (name == 'referer' || name == 'origin')) {
+          final page = Uri.tryParse(entry.value);
+          if (page != null && page.scheme == 'https' && page.host.isNotEmpty) {
+            req.headers.set(name, page.origin);
+          }
         }
       }
-      final cookie = await cookies(uri);
-      if (cookie.isNotEmpty) req.headers.set('Cookie', cookie);
+      if (uri.scheme == 'https' && uri.origin == _original?.origin) {
+        final cookie = await cookies(uri);
+        if (cookie.isNotEmpty) req.headers.set('Cookie', cookie);
+      }
       if (range != null) req.headers.set('Range', range);
       final upstream = await req.close().timeout(const Duration(seconds: 25));
       if ([301, 302, 303, 307, 308].contains(upstream.statusCode)) {
@@ -460,10 +497,10 @@ $receiverPlayerScript
           type.contains('mpegurl') ||
           uri.path.toLowerCase().endsWith('.m3u8');
       if (playlist && request.method != 'HEAD' && upstream.statusCode == 200) {
-        final text = await utf8.decoder
-            .bind(upstream)
-            .join()
-            .timeout(const Duration(seconds: 20));
+        final text = await MediaNetworkPolicy.readText(
+          upstream,
+          2 * 1024 * 1024,
+        ).timeout(const Duration(seconds: 20));
         response.headers.contentType = ContentType(
           'application',
           'vnd.apple.mpegurl',

@@ -29,7 +29,10 @@ void main() {
         request.response.add([2, 3, 4]);
         await request.response.close();
       });
-      final relay = MediaRelay(cookies: (_) async => '');
+      final relay = MediaRelay(
+        trustedLocalOrigin: Uri.parse('http://127.0.0.1:${upstream.port}'),
+        cookies: (_) async => '',
+      );
       try {
         await background.start('Screen-off connection test');
         final interfaces = await NetworkInterface.list(

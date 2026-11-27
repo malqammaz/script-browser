@@ -58,7 +58,11 @@ void main() {
         }
         await request.response.close();
       });
-      final relay = MediaRelay(cookies: (_) async => '', sourceIsHls: true);
+      final relay = MediaRelay(
+        trustedLocalOrigin: Uri.parse('http://127.0.0.1:${upstream.port}'),
+        cookies: (_) async => '',
+        sourceIsHls: true,
+      );
       final client = HttpClient();
       try {
         final url = await relay.start(
@@ -132,7 +136,7 @@ void main() {
       final upstream = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       final subscription = upstream.listen((req) async {
         expect(req.headers.value('range'), 'bytes=1-3');
-        expect(req.headers.value('cookie'), 'session=allowed');
+        expect(req.headers.value('cookie'), isNull);
         req.response.statusCode = 206;
         req.response.headers.set('Content-Range', 'bytes 1-3/5');
         req.response.headers.contentType = ContentType('video', 'mp4');
@@ -142,6 +146,7 @@ void main() {
       });
       final original = Uri.parse('http://127.0.0.1:${upstream.port}/movie.mp4');
       final relay = MediaRelay(
+        trustedLocalOrigin: original,
         loadPlayerScript: () =>
             File('assets/vendor/hls-1.7.3.min.js').readAsString(),
         cookies: (uri) async {
