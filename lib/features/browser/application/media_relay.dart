@@ -76,12 +76,18 @@ class MediaRelay {
     _client.findProxy = (_) => 'DIRECT';
     _client.connectionFactory = (uri, proxyHost, proxyPort) async {
       final literal = InternetAddress.tryParse(uri.host);
-      final local = trustedLocalOrigin?.origin == uri.origin &&
-          literal != null && (MediaNetworkPolicy.isLan(literal) || literal.isLoopback);
-      final addresses = await InternetAddress.lookup(uri.host)
-          .timeout(const Duration(seconds: 15));
-      final allowed = addresses.where((ip) => MediaNetworkPolicy.isPublic(ip) ||
-          (local && (MediaNetworkPolicy.isLan(ip) || ip.isLoopback)));
+      final local =
+          trustedLocalOrigin?.origin == uri.origin &&
+          literal != null &&
+          (MediaNetworkPolicy.isLan(literal) || literal.isLoopback);
+      final addresses = await InternetAddress.lookup(
+        uri.host,
+      ).timeout(const Duration(seconds: 15));
+      final allowed = addresses.where(
+        (ip) =>
+            MediaNetworkPolicy.isPublic(ip) ||
+            (local && (MediaNetworkPolicy.isLan(ip) || ip.isLoopback)),
+      );
       if (allowed.isEmpty || (uri.scheme != 'https' && !local)) {
         throw const FormatException('Blocked media destination.');
       }
@@ -213,7 +219,8 @@ class MediaRelay {
     String? range,
   }) async {
     for (var redirect = 0; redirect < 6; redirect++) {
-      if (uri.userInfo.isNotEmpty || uri.host.isEmpty ||
+      if (uri.userInfo.isNotEmpty ||
+          uri.host.isEmpty ||
           !['http', 'https'].contains(uri.scheme)) {
         throw const FormatException('Invalid media destination.');
       }
@@ -222,7 +229,8 @@ class MediaRelay {
       for (final entry in headers.entries) {
         final name = entry.key.toLowerCase();
         if (name == 'user-agent') req.headers.set(name, entry.value);
-        if (uri.scheme == 'https' && uri.origin == _original?.origin &&
+        if (uri.scheme == 'https' &&
+            uri.origin == _original?.origin &&
             (name == 'referer' || name == 'origin')) {
           final page = Uri.tryParse(entry.value);
           if (page != null && page.scheme == 'https' && page.host.isNotEmpty) {
@@ -489,8 +497,10 @@ $receiverPlayerScript
           type.contains('mpegurl') ||
           uri.path.toLowerCase().endsWith('.m3u8');
       if (playlist && request.method != 'HEAD' && upstream.statusCode == 200) {
-        final text = await MediaNetworkPolicy.readText(upstream, 2 * 1024 * 1024)
-            .timeout(const Duration(seconds: 20));
+        final text = await MediaNetworkPolicy.readText(
+          upstream,
+          2 * 1024 * 1024,
+        ).timeout(const Duration(seconds: 20));
         response.headers.contentType = ContentType(
           'application',
           'vnd.apple.mpegurl',

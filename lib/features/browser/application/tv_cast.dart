@@ -67,16 +67,20 @@ class TvCast {
     await Future.wait(
       locations.map((uri) async {
         final client = HttpClient()
-          ..findProxy = (_) => 'DIRECT'
-          ..connectionTimeout = const Duration(seconds: 3);
+          ..findProxy = (_) =>
+              'DIRECT'..connectionTimeout = const Duration(seconds: 3);
         try {
           final request = await client.getUrl(uri);
           request.followRedirects = false;
-          final response = await request.close().timeout(const Duration(seconds: 4));
+          final response = await request.close().timeout(
+            const Duration(seconds: 4),
+          );
           if (response.statusCode != 200) return;
           final doc = XmlDocument.parse(
-            await MediaNetworkPolicy.readText(response, 512 * 1024)
-                .timeout(const Duration(seconds: 4)),
+            await MediaNetworkPolicy.readText(
+              response,
+              512 * 1024,
+            ).timeout(const Duration(seconds: 4)),
           );
           final base = doc
               .findAllElements('URLBase')
@@ -91,7 +95,8 @@ class TvCast {
             final control = root.resolve(path);
             if (control.host != uri.host ||
                 control.userInfo.isNotEmpty ||
-                !['http', 'https'].contains(control.scheme)) continue;
+                !['http', 'https'].contains(control.scheme))
+              continue;
             if (!devices.any((d) => d.control == control)) {
               devices.add(
                 CastTv(
@@ -118,8 +123,8 @@ class TvCast {
     Map<String, String> args = const {},
   ]) async {
     final client = HttpClient()
-      ..findProxy = (_) => 'DIRECT'
-      ..connectionTimeout = const Duration(seconds: 5);
+      ..findProxy = (_) =>
+          'DIRECT'..connectionTimeout = const Duration(seconds: 5);
     try {
       final request = await client.postUrl(tv.control);
       request.followRedirects = false;
@@ -132,8 +137,10 @@ class TvCast {
       final response = await request.close().timeout(
         const Duration(seconds: 15),
       );
-      final text = await MediaNetworkPolicy.readText(response, 512 * 1024)
-          .timeout(const Duration(seconds: 10));
+      final text = await MediaNetworkPolicy.readText(
+        response,
+        512 * 1024,
+      ).timeout(const Duration(seconds: 10));
       if (response.statusCode != 200) {
         final code =
             RegExp(

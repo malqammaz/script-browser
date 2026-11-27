@@ -252,8 +252,11 @@ class BrowserWeb implements BrowserEngine {
     shouldInterceptRequest: (c, request) async {
       onResource?.call(Uri.parse(request.url.toString()));
       rememberMedia(request.url.toString(), request.headers ?? const {});
-      if (!MediaNetworkPolicy.blockedWebUrl(Uri.parse(request.url.toString())) &&
-          !blocker.blocks(request.url.toString(), pageUrl)) return null;
+      if (!MediaNetworkPolicy.blockedWebUrl(
+            Uri.parse(request.url.toString()),
+          ) &&
+          !blocker.blocks(request.url.toString(), pageUrl))
+        return null;
       onBlocked();
       return WebResourceResponse(
         contentType: 'text/plain',
