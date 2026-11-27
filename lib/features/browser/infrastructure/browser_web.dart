@@ -7,6 +7,7 @@ import '../../protection/domain/ad_blocker.dart';
 import '../domain/browser_engine.dart';
 import '../application/media_source.dart';
 import 'media_probe_script.dart';
+import '../application/media_network_policy.dart';
 
 /// Keeps the script editor independent of the Android WebView implementation.
 class BrowserWeb implements BrowserEngine {
@@ -125,6 +126,9 @@ class BrowserWeb implements BrowserEngine {
 
   @override
   Future<void> loadRequest(Uri uri) async {
+    if (MediaNetworkPolicy.blockedWebUrl(uri)) {
+      throw const FormatException('Use HTTPS for public websites.');
+    }
     _pendingNavigation = uri;
     pageUrl = uri.toString();
     await updateProtection();
@@ -238,7 +242,8 @@ class BrowserWeb implements BrowserEngine {
       if (url == null || !['http', 'https', 'about'].contains(url.scheme)) {
         return NavigationActionPolicy.CANCEL;
       }
-      if (blocker.blocks(url.toString(), pageUrl)) {
+      if (MediaNetworkPolicy.blockedWebUrl(Uri.parse(url.toString())) ||
+          blocker.blocks(url.toString(), pageUrl)) {
         onBlocked();
         return NavigationActionPolicy.CANCEL;
       }
@@ -247,7 +252,8 @@ class BrowserWeb implements BrowserEngine {
     shouldInterceptRequest: (c, request) async {
       onResource?.call(Uri.parse(request.url.toString()));
       rememberMedia(request.url.toString(), request.headers ?? const {});
-      if (!blocker.blocks(request.url.toString(), pageUrl)) return null;
+      if (!MediaNetworkPolicy.blockedWebUrl(Uri.parse(request.url.toString())) &&
+          !blocker.blocks(request.url.toString(), pageUrl)) return null;
       onBlocked();
       return WebResourceResponse(
         contentType: 'text/plain',

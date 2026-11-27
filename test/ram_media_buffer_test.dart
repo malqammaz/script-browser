@@ -65,6 +65,7 @@ void main() {
         await req.response.close();
       });
       final relay = MediaRelay(
+        trustedLocalOrigin: Uri.parse('http://127.0.0.1:${upstream.port}'),
         cookies: (_) async => '',
         bufferBytes: 2048,
         maxSegmentBytes: 512,
@@ -134,6 +135,7 @@ void main() {
         await req.response.close();
       });
       final relay = MediaRelay(
+        trustedLocalOrigin: Uri.parse('http://127.0.0.1:${upstream.port}'),
         cookies: (_) async => '',
         bufferBytes: 2048,
         maxSegmentBytes: 512,

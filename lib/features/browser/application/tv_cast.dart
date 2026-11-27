@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:xml/xml.dart';
+import 'media_network_policy.dart';
 import 'media_relay.dart';
 import 'cast_keep_alive.dart';
 export 'media_relay.dart';
@@ -29,7 +30,7 @@ class TvCast {
 
   static Future<List<CastTv>> discover() async {
     final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
-    final locations = <String>{};
+    final locations = <Uri>{};
     final subscription = socket.listen((event) {
       if (event != RawSocketEvent.read) return;
       Datagram? datagram;
@@ -40,7 +41,14 @@ class TvCast {
           caseSensitive: false,
           multiLine: true,
         ).firstMatch(text)?.group(1)?.trim();
-        if (location != null) locations.add(location);
+        final uri = location == null ? null : Uri.tryParse(location);
+        if (uri != null &&
+            locations.length < 32 &&
+            ['http', 'https'].contains(uri.scheme) &&
+            uri.userInfo.isEmpty &&
+            InternetAddress.tryParse(uri.host) == datagram.address) {
+          locations.add(uri);
+        }
       }
     });
     try {
@@ -57,20 +65,17 @@ class TvCast {
     }
     final devices = <CastTv>[];
     await Future.wait(
-      locations.map((location) async {
+      locations.map((uri) async {
         final client = HttpClient()
+          ..findProxy = (_) => 'DIRECT'
           ..connectionTimeout = const Duration(seconds: 3);
         try {
-          final uri = Uri.parse(location);
-          if (!['http', 'https'].contains(uri.scheme)) return;
-          final response = await (await client.getUrl(
-            uri,
-          )).close().timeout(const Duration(seconds: 4));
+          final request = await client.getUrl(uri);
+          request.followRedirects = false;
+          final response = await request.close().timeout(const Duration(seconds: 4));
           if (response.statusCode != 200) return;
           final doc = XmlDocument.parse(
-            await utf8.decoder
-                .bind(response)
-                .join()
+            await MediaNetworkPolicy.readText(response, 512 * 1024)
                 .timeout(const Duration(seconds: 4)),
           );
           final base = doc
@@ -84,7 +89,9 @@ class TvCast {
             final path = item.getElement('controlURL')?.innerText;
             if (path == null) continue;
             final control = root.resolve(path);
-            if (control.host != uri.host) continue;
+            if (control.host != uri.host ||
+                control.userInfo.isNotEmpty ||
+                !['http', 'https'].contains(control.scheme)) continue;
             if (!devices.any((d) => d.control == control)) {
               devices.add(
                 CastTv(
@@ -110,9 +117,12 @@ class TvCast {
     String action, [
     Map<String, String> args = const {},
   ]) async {
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
+    final client = HttpClient()
+      ..findProxy = (_) => 'DIRECT'
+      ..connectionTimeout = const Duration(seconds: 5);
     try {
       final request = await client.postUrl(tv.control);
+      request.followRedirects = false;
       request.headers.set('Content-Type', 'text/xml; charset=utf-8');
       request.headers.set('SOAPAction', '"$service#$action"');
       final fields = {'InstanceID': '0', ...args};
@@ -122,9 +132,7 @@ class TvCast {
       final response = await request.close().timeout(
         const Duration(seconds: 15),
       );
-      final text = await utf8.decoder
-          .bind(response)
-          .join()
+      final text = await MediaNetworkPolicy.readText(response, 512 * 1024)
           .timeout(const Duration(seconds: 10));
       if (response.statusCode != 200) {
         final code =
@@ -149,6 +157,7 @@ class TvCast {
     Map<String, String> headers = const {},
     bool useBrowserReceiver = false,
     bool isHls = false,
+    bool manualLocalSource = false,
   }) async {
     final interfaces = await NetworkInterface.list(
       type: InternetAddressType.IPv4,
@@ -172,6 +181,7 @@ class TvCast {
       cookies: cookies,
       headers: headers,
       sourceIsHls: isHls,
+      trustedLocalOrigin: manualLocalSource ? media : null,
     );
     relay = next;
     try {

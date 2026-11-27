@@ -119,6 +119,7 @@ class _CastDialogState extends State<CastDialog> {
       selected!,
       uri,
       cookies: widget.web.mediaCookies,
+      manualLocalSource: manual.text.trim().isNotEmpty,
       isHls: widget.web.isHlsMedia(uri),
       useBrowserReceiver:
           lgBrowser &&
