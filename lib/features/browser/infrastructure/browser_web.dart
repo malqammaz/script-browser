@@ -255,8 +255,9 @@ class BrowserWeb implements BrowserEngine {
       if (!MediaNetworkPolicy.blockedWebUrl(
             Uri.parse(request.url.toString()),
           ) &&
-          !blocker.blocks(request.url.toString(), pageUrl))
+          !blocker.blocks(request.url.toString(), pageUrl)) {
         return null;
+      }
       onBlocked();
       return WebResourceResponse(
         contentType: 'text/plain',

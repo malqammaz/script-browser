@@ -67,8 +67,8 @@ class TvCast {
     await Future.wait(
       locations.map((uri) async {
         final client = HttpClient()
-          ..findProxy = (_) =>
-              'DIRECT'..connectionTimeout = const Duration(seconds: 3);
+          ..connectionTimeout = const Duration(seconds: 3)
+          ..findProxy = (_) => 'DIRECT';
         try {
           final request = await client.getUrl(uri);
           request.followRedirects = false;
@@ -95,8 +95,9 @@ class TvCast {
             final control = root.resolve(path);
             if (control.host != uri.host ||
                 control.userInfo.isNotEmpty ||
-                !['http', 'https'].contains(control.scheme))
+                !['http', 'https'].contains(control.scheme)) {
               continue;
+            }
             if (!devices.any((d) => d.control == control)) {
               devices.add(
                 CastTv(
@@ -123,8 +124,8 @@ class TvCast {
     Map<String, String> args = const {},
   ]) async {
     final client = HttpClient()
-      ..findProxy = (_) =>
-          'DIRECT'..connectionTimeout = const Duration(seconds: 5);
+      ..connectionTimeout = const Duration(seconds: 5)
+      ..findProxy = (_) => 'DIRECT';
     try {
       final request = await client.postUrl(tv.control);
       request.followRedirects = false;
